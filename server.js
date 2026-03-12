@@ -6,7 +6,6 @@ const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 
-// Google Apps Script Web App URL - no Google Cloud needed
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL ||
   'https://script.google.com/macros/s/AKfycbzZ9hbLj2ecF9PJgzBpfh3UBTxzGL-WZSawktSdtFeICofuPvLZumeGFGEavH-mQ8SH/exec';
 
@@ -18,19 +17,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Track connected agents: agentId -> ws
 const agents = new Map();
-// Pending forms: formId -> callData
 const pendingForms = new Map();
 
-// ── WebSocket: agent connections ─────────────────────────────────────────────
+// ── WebSocket ────────────────────────────────────────────────────────────────
 wss.on('connection', (ws) => {
   let agentId = null;
-
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
-
     if (msg.type === 'register') {
       agentId = msg.agentId;
       agents.set(agentId, ws);
@@ -38,31 +33,23 @@ wss.on('connection', (ws) => {
       ws.send(JSON.stringify({ type: 'registered', agentId }));
     }
   });
-
   ws.on('close', () => {
-    if (agentId) {
-      agents.delete(agentId);
-      console.log(`Agent disconnected: ${agentId}`);
-    }
+    if (agentId) agents.delete(agentId);
   });
 });
 
 // ── RingCentral Webhook ──────────────────────────────────────────────────────
 app.post('/webhook/ringcentral', async (req, res) => {
-  // RingCentral sends a validation token on first setup
   const validationToken = req.headers['validation-token'];
   if (validationToken) {
     res.set('Validation-Token', validationToken);
     return res.status(200).send();
   }
+  res.status(200).send();
 
-  res.status(200).send(); // always ACK quickly
-
-  const body = req.body;
-  const event = body?.body;
+  const event = req.body?.body;
   if (!event) return;
 
-  // Only act on calls that have ended
   const status = event?.telephonyStatus || event?.status;
   if (status !== 'NoCall' && status !== 'Disconnected') return;
 
@@ -84,21 +71,18 @@ app.post('/webhook/ringcentral', async (req, res) => {
 
   pendingForms.set(callData.formId, callData);
 
-  // Push popup to the matching agent's browser
   const agentWs = agents.get(callData.agentId);
   if (agentWs && agentWs.readyState === WebSocket.OPEN) {
     agentWs.send(JSON.stringify({ type: 'call_ended', callData }));
   } else {
-    // Broadcast to all connected agents as fallback
     wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
+      if (client.readyState === WebSocket.OPEN)
         client.send(JSON.stringify({ type: 'call_ended', callData }));
-      }
     });
   }
 });
 
-// ── Submit form → Google Sheets via Apps Script ───────────────────────────────
+// ── Submit → Google Sheets via Apps Script ───────────────────────────────────
 app.post('/api/submit', async (req, res) => {
   const {
     formId, outcome, notes, followUpDate,
@@ -126,20 +110,19 @@ app.post('/api/submit', async (req, res) => {
   };
 
   try {
+    // Google Apps Script requires following redirects manually
     const response = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'text/plain', // Apps Script works better with text/plain
+      },
       body: JSON.stringify(payload),
       redirect: 'follow',
     });
 
+    console.log('Apps Script response status:', response.status);
     const text = await response.text();
-    let result;
-    try { result = JSON.parse(text); } catch { result = { success: true }; }
-
-    if (result.success === false) {
-      throw new Error(result.error || 'Apps Script returned error');
-    }
+    console.log('Apps Script response body:', text);
 
     pendingForms.delete(formId);
     res.json({ success: true });
@@ -149,7 +132,7 @@ app.post('/api/submit', async (req, res) => {
   }
 });
 
-// ── Manual test popup ────────────────────────────────────────────────────────
+// ── Test popup ───────────────────────────────────────────────────────────────
 app.post('/api/test-popup', (req, res) => {
   const callData = {
     formId: uuidv4(),
@@ -164,9 +147,8 @@ app.post('/api/test-popup', (req, res) => {
   };
   pendingForms.set(callData.formId, callData);
   wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
+    if (client.readyState === WebSocket.OPEN)
       client.send(JSON.stringify({ type: 'call_ended', callData }));
-    }
   });
   res.json({ success: true, callData });
 });
@@ -179,7 +161,6 @@ function formatDuration(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-// ── Start ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`CORAS Call Logger running on port ${PORT}`);
