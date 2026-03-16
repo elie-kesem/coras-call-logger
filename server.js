@@ -53,8 +53,13 @@ app.post('/webhook/ringcentral', async (req, res) => {
   // Log full payload for debugging
   console.log('RC event body:', JSON.stringify(event, null, 2));
 
-  const status = event?.telephonyStatus || event?.status;
-  if (status !== 'NoCall' && status !== 'Disconnected') return;
+  // Accept both presence events (telephonyStatus=NoCall) and telephony session events (party status=Disconnected)
+  const topStatus = event?.telephonyStatus;
+  const partyStatuses = (event?.parties || []).map(p => p.status?.code);
+  const isCallEnd = topStatus === 'NoCall' || partyStatuses.some(s => s === 'Disconnected');
+  if (!isCallEnd) return;
+  // Skip pure presence events that have no parties
+  if (!event?.parties?.length) return;
 
   const parties = event?.parties || [];
 
