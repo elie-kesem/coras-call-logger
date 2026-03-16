@@ -58,37 +58,31 @@ app.post('/webhook/ringcentral', async (req, res) => {
 
   const parties = event?.parties || [];
 
-  // RC puts all parties from the account's perspective
-  // The agent party has an extensionId; the other party does not
+  // Agent party always has from.extensionId
   const agentParty = parties.find(p => p.from?.extensionId) || parties[0];
-  const otherParty = parties.find(p => !p.from?.extensionId) || parties[1];
+  const direction = agentParty?.direction === 'Outbound' ? 'Outbound' : 'Inbound';
 
-  // For outbound: agent is from, other person is to
-  // For inbound: other person is from, agent is to
-  // Determine direction based on activeCalls data or extensionId position
-  const agentExtId = agentParty?.from?.extensionId;
-  const agentPhone = agentParty?.from?.phoneNumber;
-  const otherPhone = otherParty
-    ? (otherParty.to?.phoneNumber || otherParty.from?.phoneNumber)
-    : (agentParty?.to?.phoneNumber);
-  const otherName = otherParty
-    ? (otherParty.to?.name || otherParty.from?.name)
-    : (agentParty?.to?.name) || 'Unknown Caller';
-
-  // Direction: if agent's phone matches the from field, it's outbound
-  const isOutbound = agentParty?.from?.extensionId &&
-    agentParty?.to?.phoneNumber !== undefined;
-  const direction = isOutbound ? 'Outbound' : 'Inbound';
+  let otherPhone, otherName;
+  if (direction === 'Outbound') {
+    // Agent called out: other party is in agentParty.to
+    otherPhone = agentParty?.to?.phoneNumber || 'Unknown';
+    otherName = agentParty?.to?.name || 'Unknown Caller';
+  } else {
+    // Someone called in: other party is in agentParty.from or a separate party
+    const inboundParty = parties.find(p => !p.from?.extensionId) || parties[1];
+    otherPhone = inboundParty?.from?.phoneNumber || agentParty?.from?.phoneNumber || 'Unknown';
+    otherName = inboundParty?.from?.name || 'Unknown Caller';
+  }
 
   const callData = {
     formId: uuidv4(),
-    agentId: String(agentExtId || 'unknown'),
+    agentId: String(agentParty?.from?.extensionId || 'unknown'),
     agentName: agentParty?.from?.name || 'Agent',
-    callerPhone: otherPhone || agentParty?.to?.phoneNumber || 'Unknown',
-    callerName: otherName || 'Unknown Caller',
+    callerPhone: otherPhone,
+    callerName: otherName,
     direction,
     duration: event?.duration || 0,
-    startTime: event?.startTime || new Date().toISOString(),
+    startTime: event?.eventTime || new Date().toISOString(),
     sessionId: event?.sessionId || uuidv4(),
   };
 
