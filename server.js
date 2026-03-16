@@ -121,21 +121,28 @@ app.post('/webhook/ringcentral', async (req, res) => {
 
   const parties = event?.parties || [];
 
-  // Agent party always has from.extensionId
+  // Agent party has from.extensionId in party data
+  // Fallback: top-level extensionId from presence events
   const agentParty = parties.find(p => p.from?.extensionId) || parties[0];
-  const direction = agentParty?.direction === 'Outbound' ? 'Outbound' : 'Inbound';
+  const topExtId = event?.extensionId ? String(event.extensionId) : null;
+  const extId = String(agentParty?.from?.extensionId || topExtId || 'unknown');
 
+  const direction = agentParty?.direction === 'Outbound' ? 'Outbound' :
+    (event?.activeCalls?.[0]?.direction === 'Outbound' ? 'Outbound' : 'Inbound');
+
+  // For outbound: agent called out, other party is agentParty.to
+  // For inbound: other party called in, they are agentParty.from or separate party
   let otherPhone, otherName;
   if (direction === 'Outbound') {
-    otherPhone = agentParty?.to?.phoneNumber || 'Unknown';
+    const toPhone = agentParty?.to?.phoneNumber || event?.activeCalls?.[0]?.to;
+    otherPhone = toPhone || 'Unknown';
     otherName = agentParty?.to?.name || 'Unknown Caller';
   } else {
     const inboundParty = parties.find(p => !p.from?.extensionId) || parties[1];
-    otherPhone = inboundParty?.from?.phoneNumber || agentParty?.from?.phoneNumber || 'Unknown';
+    const fromPhone = inboundParty?.from?.phoneNumber || event?.activeCalls?.[0]?.from;
+    otherPhone = fromPhone || 'Unknown';
     otherName = inboundParty?.from?.name || 'Unknown Caller';
   }
-
-  const extId = String(agentParty?.from?.extensionId || 'unknown');
 
   const callData = {
     formId: uuidv4(),
