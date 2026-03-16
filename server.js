@@ -24,6 +24,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const agents = new Map();        // extensionId -> ws
 const pendingForms = new Map();
 const callStartTimes = new Map(); // sessionId -> start timestamp
+const processedSessions = new Set(); // sessionIds already triggered popup
 
 // ── WebSocket ────────────────────────────────────────────────────────────────
 wss.on('connection', (ws) => {
@@ -114,10 +115,12 @@ app.post('/webhook/ringcentral', async (req, res) => {
   }
 
   // Accept telephony session disconnects and presence NoCall events
-  const topStatus = event?.telephonyStatus;
-  const isCallEnd = topStatus === 'NoCall' || partyStatuses.some(s => s === 'Disconnected');
+  // Only process telephony session events with Disconnected party status
+  const isCallEnd = partyStatuses.some(s => s === 'Disconnected');
   if (!isCallEnd) return;
   if (!event?.parties?.length) return;
+  // Skip if already processed this session
+  if (sessionId && processedSessions.has(sessionId)) return;
 
   const parties = event?.parties || [];
 
@@ -158,7 +161,11 @@ app.post('/webhook/ringcentral', async (req, res) => {
   };
 
   pendingForms.set(callData.formId, callData);
-  if (sessionId) callStartTimes.delete(sessionId);
+  if (sessionId) {
+    callStartTimes.delete(sessionId);
+    processedSessions.add(sessionId);
+    setTimeout(() => processedSessions.delete(sessionId), 60000);
+  }
 
   // Route to specific agent by extension ID
   const agentWs = agents.get(extId);
