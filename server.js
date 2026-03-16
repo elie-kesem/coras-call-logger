@@ -50,20 +50,40 @@ app.post('/webhook/ringcentral', async (req, res) => {
   const event = req.body?.body;
   if (!event) return;
 
+  // Log full payload for debugging
+  console.log('RC event body:', JSON.stringify(event, null, 2));
+
   const status = event?.telephonyStatus || event?.status;
   if (status !== 'NoCall' && status !== 'Disconnected') return;
 
   const parties = event?.parties || [];
-  const agent = parties.find(p => p.direction === 'Outbound' || p.role === 'Initiator') || parties[0];
-  const caller = parties.find(p => p.direction === 'Inbound') || parties[1];
+  const direction = event?.direction || 'Inbound';
+
+  let otherParty, agentParty;
+
+  if (direction === 'Outbound') {
+    // Outbound: agent dialed out, other party is the callee
+    agentParty = parties.find(p => p.direction === 'Outbound') || parties[0];
+    otherParty = parties.find(p => p.direction === 'Inbound') || parties[1];
+  } else {
+    // Inbound: someone called in, agent answered
+    agentParty = parties.find(p => p.direction === 'Inbound') || parties[0];
+    otherParty = parties.find(p => p.direction === 'Outbound') || parties[1];
+  }
+
+  // Extract the phone number of the other party (not the agent)
+  const otherPhone = otherParty?.to?.phoneNumber || otherParty?.from?.phoneNumber ||
+    (direction === 'Outbound' ? event?.to?.phoneNumber : event?.from?.phoneNumber) || 'Unknown';
+  const otherName = otherParty?.to?.name || otherParty?.from?.name ||
+    (direction === 'Outbound' ? event?.to?.name : event?.from?.name) || 'Unknown Caller';
 
   const callData = {
     formId: uuidv4(),
-    agentId: String(agent?.extensionId || agent?.accountId || 'unknown'),
-    agentName: agent?.from?.name || agent?.to?.name || 'Agent',
-    callerPhone: caller?.from?.phoneNumber || event?.from?.phoneNumber || 'Unknown',
-    callerName: caller?.from?.name || 'Unknown Caller',
-    direction: event?.direction || 'Inbound',
+    agentId: String(agentParty?.extensionId || agentParty?.accountId || 'unknown'),
+    agentName: agentParty?.from?.name || agentParty?.to?.name || 'Agent',
+    callerPhone: otherPhone,
+    callerName: otherName,
+    direction,
     duration: event?.duration || 0,
     startTime: event?.startTime || new Date().toISOString(),
     sessionId: event?.sessionId || uuidv4(),
