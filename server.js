@@ -103,8 +103,14 @@ app.post('/webhook/ringcentral', async (req, res) => {
   const sessionId = event?.sessionId;
   const partyStatuses = (event?.parties || []).map(p => p.status?.code);
   const hasAnswered = partyStatuses.some(s => s === 'Answered');
-  if (hasAnswered && sessionId && !callStartTimes.has(sessionId)) {
+  const hasProceeding = partyStatuses.some(s => s === 'Proceeding');
+  
+  console.log(`Session ${sessionId} - statuses: ${JSON.stringify(partyStatuses)}, hasAnswered: ${hasAnswered}`);
+  
+  // Start timer on Answered OR Proceeding (for outbound calls that connect)
+  if ((hasAnswered || hasProceeding) && sessionId && !callStartTimes.has(sessionId)) {
     callStartTimes.set(sessionId, Date.now());
+    console.log(`Started timer for session ${sessionId}`);
   }
 
   // Accept telephony session disconnects and presence NoCall events
