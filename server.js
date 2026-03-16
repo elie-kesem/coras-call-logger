@@ -9,6 +9,10 @@ const path = require('path');
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL ||
   'https://script.google.com/macros/s/AKfycbzZ9hbLj2ecF9PJgzBpfh3UBTxzGL-WZSawktSdtFeICofuPvLZumeGFGEavH-mQ8SH/exec';
 
+const RC_CLIENT_ID = process.env.RC_CLIENT_ID || '4wQyQGPz0HYcwQ1JGnPy45';
+const RC_CLIENT_SECRET = process.env.RC_CLIENT_SECRET || 'bUghqhsGdjHeQpAuEDuToLdsDGSiaFFA8bdv9X3h4GOu';
+const RC_SERVER = 'https://platform.ringcentral.com';
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -17,26 +21,70 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const agents = new Map();
+const agents = new Map();        // extensionId -> ws
 const pendingForms = new Map();
 const callStartTimes = new Map(); // sessionId -> start timestamp
 
 // ── WebSocket ────────────────────────────────────────────────────────────────
 wss.on('connection', (ws) => {
-  let agentId = null;
+  let agentExtId = null;
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
     if (msg.type === 'register') {
-      agentId = msg.agentId;
-      agents.set(agentId, ws);
-      console.log(`Agent registered: ${agentId}`);
-      ws.send(JSON.stringify({ type: 'registered', agentId }));
+      agentExtId = String(msg.extensionId);
+      agents.set(agentExtId, ws);
+      console.log(`Agent registered: ${msg.agentName} (ext ${agentExtId})`);
+      ws.send(JSON.stringify({ type: 'registered', extensionId: agentExtId }));
     }
   });
   ws.on('close', () => {
-    if (agentId) agents.delete(agentId);
+    if (agentExtId) agents.delete(agentExtId);
   });
+});
+
+// ── OAuth: exchange code for token ───────────────────────────────────────────
+app.post('/api/rc-auth', async (req, res) => {
+  const { code, redirectUri } = req.body;
+  if (!code) return res.status(400).json({ error: 'Missing code' });
+
+  try {
+    const params = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+    });
+
+    const response = await fetch(`${RC_SERVER}/restapi/oauth/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${RC_CLIENT_ID}:${RC_CLIENT_SECRET}`).toString('base64'),
+      },
+      body: params.toString(),
+    });
+
+    const token = await response.json();
+    if (!token.access_token) {
+      console.error('Token error:', token);
+      return res.status(400).json({ error: 'Failed to get token', detail: token });
+    }
+
+    // Fetch user info to get extension ID and name
+    const meRes = await fetch(`${RC_SERVER}/restapi/v1.0/account/~/extension/~`, {
+      headers: { 'Authorization': `Bearer ${token.access_token}` }
+    });
+    const me = await meRes.json();
+
+    res.json({
+      extensionId: String(me.id),
+      agentName: me.name || `${me.contact?.firstName} ${me.contact?.lastName}`.trim(),
+      accessToken: token.access_token,
+    });
+  } catch (err) {
+    console.error('Auth error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── RingCentral Webhook ──────────────────────────────────────────────────────
@@ -51,9 +99,6 @@ app.post('/webhook/ringcentral', async (req, res) => {
   const event = req.body?.body;
   if (!event) return;
 
-  // Log full payload for debugging
-  console.log('RC event body:', JSON.stringify(event, null, 2));
-
   // Track call start time
   const sessionId = event?.sessionId;
   const partyStatuses = (event?.parties || []).map(p => p.status?.code);
@@ -62,11 +107,10 @@ app.post('/webhook/ringcentral', async (req, res) => {
     callStartTimes.set(sessionId, Date.now());
   }
 
-  // Accept both presence events (telephonyStatus=NoCall) and telephony session events (party status=Disconnected)
+  // Accept telephony session disconnects and presence NoCall events
   const topStatus = event?.telephonyStatus;
   const isCallEnd = topStatus === 'NoCall' || partyStatuses.some(s => s === 'Disconnected');
   if (!isCallEnd) return;
-  // Skip pure presence events that have no parties
   if (!event?.parties?.length) return;
 
   const parties = event?.parties || [];
@@ -77,24 +121,25 @@ app.post('/webhook/ringcentral', async (req, res) => {
 
   let otherPhone, otherName;
   if (direction === 'Outbound') {
-    // Agent called out: other party is in agentParty.to
     otherPhone = agentParty?.to?.phoneNumber || 'Unknown';
     otherName = agentParty?.to?.name || 'Unknown Caller';
   } else {
-    // Someone called in: other party is in agentParty.from or a separate party
     const inboundParty = parties.find(p => !p.from?.extensionId) || parties[1];
     otherPhone = inboundParty?.from?.phoneNumber || agentParty?.from?.phoneNumber || 'Unknown';
     otherName = inboundParty?.from?.name || 'Unknown Caller';
   }
 
+  const extId = String(agentParty?.from?.extensionId || 'unknown');
+
   const callData = {
     formId: uuidv4(),
-    agentId: String(agentParty?.from?.extensionId || 'unknown'),
+    agentId: extId,
     agentName: agentParty?.from?.name || 'Agent',
     callerPhone: otherPhone,
     callerName: otherName,
     direction,
-    duration: sessionId && callStartTimes.has(sessionId) ? Math.round((Date.now() - callStartTimes.get(sessionId)) / 1000) : 0,
+    duration: sessionId && callStartTimes.has(sessionId)
+      ? Math.round((Date.now() - callStartTimes.get(sessionId)) / 1000) : 0,
     startTime: event?.eventTime || new Date().toISOString(),
     sessionId: event?.sessionId || uuidv4(),
   };
@@ -102,10 +147,13 @@ app.post('/webhook/ringcentral', async (req, res) => {
   pendingForms.set(callData.formId, callData);
   if (sessionId) callStartTimes.delete(sessionId);
 
-  const agentWs = agents.get(callData.agentId);
+  // Route to specific agent by extension ID
+  const agentWs = agents.get(extId);
   if (agentWs && agentWs.readyState === WebSocket.OPEN) {
+    console.log(`Routing popup to agent ext ${extId}`);
     agentWs.send(JSON.stringify({ type: 'call_ended', callData }));
   } else {
+    console.log(`Agent ext ${extId} not connected, broadcasting to all`);
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN)
         client.send(JSON.stringify({ type: 'call_ended', callData }));
@@ -141,12 +189,9 @@ app.post('/api/submit', async (req, res) => {
   };
 
   try {
-    // Google Apps Script requires following redirects manually
     const response = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain', // Apps Script works better with text/plain
-      },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(payload),
       redirect: 'follow',
     });
@@ -167,7 +212,7 @@ app.post('/api/submit', async (req, res) => {
 app.post('/api/test-popup', (req, res) => {
   const callData = {
     formId: uuidv4(),
-    agentId: req.body.agentId || 'test-agent',
+    agentId: req.body.extensionId || 'test',
     agentName: req.body.agentName || 'Test Agent',
     callerPhone: '+13025550123',
     callerName: 'John Smith',
@@ -177,7 +222,6 @@ app.post('/api/test-popup', (req, res) => {
     sessionId: uuidv4(),
   };
   pendingForms.set(callData.formId, callData);
-  if (sessionId) callStartTimes.delete(sessionId);
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN)
       client.send(JSON.stringify({ type: 'call_ended', callData }));
@@ -196,5 +240,4 @@ function formatDuration(seconds) {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`CORAS Call Logger running on port ${PORT}`);
-  console.log(`Apps Script URL: ${APPS_SCRIPT_URL}`);
 });
