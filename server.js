@@ -57,32 +57,35 @@ app.post('/webhook/ringcentral', async (req, res) => {
   if (status !== 'NoCall' && status !== 'Disconnected') return;
 
   const parties = event?.parties || [];
-  const direction = event?.direction || 'Inbound';
 
-  let otherParty, agentParty;
+  // RC puts all parties from the account's perspective
+  // The agent party has an extensionId; the other party does not
+  const agentParty = parties.find(p => p.from?.extensionId) || parties[0];
+  const otherParty = parties.find(p => !p.from?.extensionId) || parties[1];
 
-  if (direction === 'Outbound') {
-    // Outbound: agent dialed out, other party is the callee
-    agentParty = parties.find(p => p.direction === 'Outbound') || parties[0];
-    otherParty = parties.find(p => p.direction === 'Inbound') || parties[1];
-  } else {
-    // Inbound: someone called in, agent answered
-    agentParty = parties.find(p => p.direction === 'Inbound') || parties[0];
-    otherParty = parties.find(p => p.direction === 'Outbound') || parties[1];
-  }
+  // For outbound: agent is from, other person is to
+  // For inbound: other person is from, agent is to
+  // Determine direction based on activeCalls data or extensionId position
+  const agentExtId = agentParty?.from?.extensionId;
+  const agentPhone = agentParty?.from?.phoneNumber;
+  const otherPhone = otherParty
+    ? (otherParty.to?.phoneNumber || otherParty.from?.phoneNumber)
+    : (agentParty?.to?.phoneNumber);
+  const otherName = otherParty
+    ? (otherParty.to?.name || otherParty.from?.name)
+    : (agentParty?.to?.name) || 'Unknown Caller';
 
-  // Extract the phone number of the other party (not the agent)
-  const otherPhone = otherParty?.to?.phoneNumber || otherParty?.from?.phoneNumber ||
-    (direction === 'Outbound' ? event?.to?.phoneNumber : event?.from?.phoneNumber) || 'Unknown';
-  const otherName = otherParty?.to?.name || otherParty?.from?.name ||
-    (direction === 'Outbound' ? event?.to?.name : event?.from?.name) || 'Unknown Caller';
+  // Direction: if agent's phone matches the from field, it's outbound
+  const isOutbound = agentParty?.from?.extensionId &&
+    agentParty?.to?.phoneNumber !== undefined;
+  const direction = isOutbound ? 'Outbound' : 'Inbound';
 
   const callData = {
     formId: uuidv4(),
-    agentId: String(agentParty?.extensionId || agentParty?.accountId || 'unknown'),
-    agentName: agentParty?.from?.name || agentParty?.to?.name || 'Agent',
-    callerPhone: otherPhone,
-    callerName: otherName,
+    agentId: String(agentExtId || 'unknown'),
+    agentName: agentParty?.from?.name || 'Agent',
+    callerPhone: otherPhone || agentParty?.to?.phoneNumber || 'Unknown',
+    callerName: otherName || 'Unknown Caller',
     direction,
     duration: event?.duration || 0,
     startTime: event?.startTime || new Date().toISOString(),
