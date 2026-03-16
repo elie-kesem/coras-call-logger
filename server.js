@@ -19,6 +19,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const agents = new Map();
 const pendingForms = new Map();
+const callStartTimes = new Map(); // sessionId -> start timestamp
 
 // ── WebSocket ────────────────────────────────────────────────────────────────
 wss.on('connection', (ws) => {
@@ -53,9 +54,16 @@ app.post('/webhook/ringcentral', async (req, res) => {
   // Log full payload for debugging
   console.log('RC event body:', JSON.stringify(event, null, 2));
 
+  // Track call start time
+  const sessionId = event?.sessionId;
+  const partyStatuses = (event?.parties || []).map(p => p.status?.code);
+  const hasAnswered = partyStatuses.some(s => s === 'Answered');
+  if (hasAnswered && sessionId && !callStartTimes.has(sessionId)) {
+    callStartTimes.set(sessionId, Date.now());
+  }
+
   // Accept both presence events (telephonyStatus=NoCall) and telephony session events (party status=Disconnected)
   const topStatus = event?.telephonyStatus;
-  const partyStatuses = (event?.parties || []).map(p => p.status?.code);
   const isCallEnd = topStatus === 'NoCall' || partyStatuses.some(s => s === 'Disconnected');
   if (!isCallEnd) return;
   // Skip pure presence events that have no parties
@@ -86,12 +94,13 @@ app.post('/webhook/ringcentral', async (req, res) => {
     callerPhone: otherPhone,
     callerName: otherName,
     direction,
-    duration: event?.duration || 0,
+    duration: sessionId && callStartTimes.has(sessionId) ? Math.round((Date.now() - callStartTimes.get(sessionId)) / 1000) : 0,
     startTime: event?.eventTime || new Date().toISOString(),
     sessionId: event?.sessionId || uuidv4(),
   };
 
   pendingForms.set(callData.formId, callData);
+  if (sessionId) callStartTimes.delete(sessionId);
 
   const agentWs = agents.get(callData.agentId);
   if (agentWs && agentWs.readyState === WebSocket.OPEN) {
@@ -168,6 +177,7 @@ app.post('/api/test-popup', (req, res) => {
     sessionId: uuidv4(),
   };
   pendingForms.set(callData.formId, callData);
+  if (sessionId) callStartTimes.delete(sessionId);
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN)
       client.send(JSON.stringify({ type: 'call_ended', callData }));
