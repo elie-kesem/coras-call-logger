@@ -330,6 +330,7 @@ function loadRCWidget() {
 
 // ── Listen for RC call events ────────────────────────────────────────────────
 window.addEventListener('message', (e) => {
+  console.log('postMessage from:', e.origin, 'type:', e.data?.type);
   const data = e.data;
   if (!data || !data.type) return;
 
