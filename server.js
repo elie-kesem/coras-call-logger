@@ -124,27 +124,33 @@ app.post('/webhook/ringcentral', async (req, res) => {
 
   const parties = event?.parties || [];
 
-  // Agent party has from.extensionId in party data
-  // Fallback: top-level extensionId from presence events
+  // Get extensionId from party data or top-level event
   const agentParty = parties.find(p => p.from?.extensionId) || parties[0];
   const topExtId = event?.extensionId ? String(event.extensionId) : null;
   const extId = String(agentParty?.from?.extensionId || topExtId || 'unknown');
 
-  const direction = agentParty?.direction === 'Outbound' ? 'Outbound' :
-    (event?.activeCalls?.[0]?.direction === 'Outbound' ? 'Outbound' : 'Inbound');
+  // Use activeCalls for direction — most reliable source
+  const activeCall = event?.activeCalls?.[0];
+  const direction = activeCall?.direction === 'Outbound' ? 'Outbound' :
+    (agentParty?.direction === 'Outbound' ? 'Outbound' : 'Inbound');
 
-  // For outbound: agent called out, other party is agentParty.to
-  // For inbound: other party called in, they are agentParty.from or separate party
   let otherPhone, otherName;
   if (direction === 'Outbound') {
-    const toPhone = agentParty?.to?.phoneNumber || event?.activeCalls?.[0]?.to;
-    otherPhone = toPhone || 'Unknown';
+    // Agent dialed out — other party is the "to" number
+    otherPhone = activeCall?.to || agentParty?.to?.phoneNumber || 'Unknown';
     otherName = agentParty?.to?.name || 'Unknown Caller';
   } else {
+    // Inbound — other party is the "from" number
+    otherPhone = activeCall?.from || agentParty?.from?.phoneNumber || 'Unknown';
+    // For inbound, agent's own number is in from if it's their extension
+    // Find the non-agent party
     const inboundParty = parties.find(p => !p.from?.extensionId) || parties[1];
-    const fromPhone = inboundParty?.from?.phoneNumber || event?.activeCalls?.[0]?.from;
-    otherPhone = fromPhone || 'Unknown';
-    otherName = inboundParty?.from?.name || 'Unknown Caller';
+    if (inboundParty) {
+      otherPhone = inboundParty.from?.phoneNumber || otherPhone;
+      otherName = inboundParty.from?.name || 'Unknown Caller';
+    } else {
+      otherName = 'Unknown Caller';
+    }
   }
 
   const callData = {
