@@ -334,6 +334,7 @@ window.addEventListener('message', (e) => {
   if (!data || !data.type) return;
 
   if (data.type === 'rc-call-ring-start' || data.type === 'rc-active-call-notify') {
+    console.log('rc-call-start event:', JSON.stringify(data.call));
     const call = data.call || {};
     activeCallData = {
       callerPhone: call.fromNumber || call.toNumber || 'Unknown',
@@ -345,6 +346,7 @@ window.addEventListener('message', (e) => {
   }
 
   if (data.type === 'rc-call-end') {
+    console.log('rc-call-end event:', JSON.stringify(data.call));
     const call = data.call || {};
     const durationSeconds = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
     callStartTime = null;
