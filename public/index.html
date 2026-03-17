@@ -333,36 +333,69 @@ window.addEventListener('message', (e) => {
   const data = e.data;
   if (!data || !data.type) return;
 
+  // Track active call on ring/connect
   if (data.type === 'rc-call-ring-start' || data.type === 'rc-active-call-notify') {
-    console.log('rc-call-start event:', JSON.stringify(data.call));
     const call = data.call || {};
-    activeCallData = {
-      callerPhone: call.fromNumber || call.toNumber || 'Unknown',
-      callerName: call.fromName || call.toName || 'Unknown Caller',
-      direction: call.direction === 'Outbound' ? 'Outbound' : 'Inbound',
-      sessionId: call.sessionId || call.id || '',
-    };
-    callStartTime = Date.now();
+    // Only start timer if call is connecting (not ending)
+    if (call.telephonyStatus !== 'NoCall' && call.telephonyStatus !== 'Disconnected') {
+      activeCallData = {
+        callerPhone: call.to?.phoneNumber || call.from?.phoneNumber || 'Unknown',
+        callerName: call.to?.name || call.from?.name || 'Unknown Caller',
+        direction: call.direction === 'Outbound' ? 'Outbound' : 'Inbound',
+        sessionId: call.sessionId || '',
+        from: call.from?.phoneNumber || '',
+        to: call.to?.phoneNumber || '',
+      };
+      if (!callStartTime) callStartTime = Date.now();
+    }
+
+    // Call ended (telephonyStatus NoCall = call finished)
+    if (call.telephonyStatus === 'NoCall' && callStartTime && activeCallData.sessionId) {
+      const durationSeconds = Math.round((Date.now() - callStartTime) / 1000);
+      callStartTime = null;
+
+      const isOutbound = activeCallData.direction === 'Outbound';
+      const otherPhone = isOutbound ? activeCallData.to : activeCallData.from;
+      const otherName = isOutbound
+        ? (call.to?.name || 'Unknown Caller')
+        : (call.from?.name || 'Unknown Caller');
+
+      const callData = {
+        formId: 'rc-' + Date.now(),
+        agentName: agentName || 'Agent',
+        callerPhone: otherPhone || 'Unknown',
+        callerName: otherName,
+        direction: activeCallData.direction,
+        duration: durationSeconds,
+        startTime: new Date(Date.now() - durationSeconds * 1000).toISOString(),
+        sessionId: activeCallData.sessionId,
+      };
+
+      activeCallData = {};
+      if (agentName) showPopup(callData);
+    }
   }
 
+  // Also handle explicit rc-call-end if fired
   if (data.type === 'rc-call-end') {
-    console.log('rc-call-end event:', JSON.stringify(data.call));
     const call = data.call || {};
-    const durationSeconds = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
-    callStartTime = null;
-
-    const callData = {
-      formId: 'rc-' + Date.now(),
-      agentName: agentName || 'Agent',
-      callerPhone: call.fromNumber || activeCallData.callerPhone || 'Unknown',
-      callerName: call.fromName || activeCallData.callerName || 'Unknown Caller',
-      direction: call.direction === 'Outbound' ? 'Outbound' : (activeCallData.direction || 'Inbound'),
-      duration: durationSeconds,
-      startTime: new Date(Date.now() - durationSeconds * 1000).toISOString(),
-      sessionId: call.sessionId || call.id || activeCallData.sessionId || '',
-    };
-
-    if (agentName) showPopup(callData);
+    if (callStartTime) {
+      const durationSeconds = Math.round((Date.now() - callStartTime) / 1000);
+      callStartTime = null;
+      const isOutbound = (call.direction || activeCallData.direction) === 'Outbound';
+      const callData = {
+        formId: 'rc-' + Date.now(),
+        agentName: agentName || 'Agent',
+        callerPhone: isOutbound ? (call.to?.phoneNumber || activeCallData.to || 'Unknown') : (call.from?.phoneNumber || activeCallData.from || 'Unknown'),
+        callerName: isOutbound ? (call.to?.name || 'Unknown Caller') : (call.from?.name || 'Unknown Caller'),
+        direction: isOutbound ? 'Outbound' : 'Inbound',
+        duration: durationSeconds,
+        startTime: new Date(Date.now() - durationSeconds * 1000).toISOString(),
+        sessionId: call.sessionId || activeCallData.sessionId || '',
+      };
+      activeCallData = {};
+      if (agentName) showPopup(callData);
+    }
   }
 });
 
