@@ -181,9 +181,10 @@
           <div id="step1">
             <div class="field">
               <label>Client Type <span class="req">*</span></label>
-              <div class="client-toggle">
+              <div class="client-toggle" style="grid-template-columns: 1fr 1fr 1fr;">
                 <button class="toggle-btn" id="btn-new" onclick="selectClientType('new')"><span class="icon">🆕</span>New Client<span class="sub">First time inquiry</span></button>
                 <button class="toggle-btn" id="btn-existing" onclick="selectClientType('existing')"><span class="icon">🔁</span>Existing Client<span class="sub">Already in treatment</span></button>
+                <button class="toggle-btn" id="btn-internal" onclick="selectClientType('internal')"><span class="icon">🏢</span>Internal Call<span class="sub">Staff or admin</span></button>
               </div>
             </div>
           </div>
@@ -440,6 +441,7 @@ function showPopup(callData) {
   document.getElementById('followup-date').value = '';
   document.getElementById('btn-new').classList.remove('selected');
   document.getElementById('btn-existing').classList.remove('selected');
+  document.getElementById('btn-internal').classList.remove('selected');
   goToStep(1);
   document.getElementById('waiting').style.display = 'none';
   document.getElementById('popup').style.display = 'block';
@@ -454,10 +456,20 @@ function goToStep(n) {
   });
 }
 
-function selectClientType(type) {
+async function selectClientType(type) {
   selectedClientType = type; selectedService = null;
   document.getElementById('btn-new').classList.toggle('selected', type === 'new');
   document.getElementById('btn-existing').classList.toggle('selected', type === 'existing');
+  document.getElementById('btn-internal').classList.toggle('selected', type === 'internal');
+
+  if (type === 'internal') {
+    // Auto-submit immediately with no further steps
+    selectedService = 'Internal Call';
+    selectedOutcome = 'Internal Call';
+    await submitForm();
+    return;
+  }
+
   const items = type === 'new' ? NEW_CLIENT_SERVICES : EXISTING_CLIENT_TYPES;
   document.getElementById('step2-label').innerHTML = (type === 'new' ? 'Service Inquired About' : 'Reason for Call') + ' <span class="req">*</span>';
   const grid = document.getElementById('option-grid');
@@ -537,4 +549,4 @@ if (extensionId && agentName) {
 }
 </script>
 </body>
-</html> 
+</html>
