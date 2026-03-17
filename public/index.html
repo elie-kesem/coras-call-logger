@@ -19,7 +19,7 @@
   .app-layout { display: flex; flex: 1; min-height: 100vh; }
 
   /* ── Phone Panel ── */
-  .phone-panel { width: 300px; min-width: 300px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  .phone-panel { display: none; }
   .phone-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
   .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
@@ -27,7 +27,7 @@
   #rc-widget-container { flex: 1; overflow: hidden; position: relative; min-height: 100vh; }
 
   /* ── Logger Panel ── */
-  .logger-panel { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 28px 24px; overflow-y: auto; }
+  .logger-panel { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 28px 24px; overflow-y: auto; max-width: 100%; }
   .logger-inner { width: 100%; max-width: 580px; }
 
   /* ── Agent Setup ── */
@@ -529,11 +529,12 @@ function formatDuration(s) {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-loadRCWidget();
+// RC widget hidden — agents use RingCentral desktop app
+// loadRCWidget();
 if (extensionId && agentName) {
   document.getElementById('agent-select').value = extensionId;
   initUI();
 }
 </script>
 </body>
-</html>
+</html> 
