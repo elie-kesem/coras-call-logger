@@ -24,7 +24,7 @@
   .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
   .phone-header-text { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-  #rc-widget-container { flex: 1; overflow: hidden; position: relative; min-height: 500px; }
+  #rc-widget-container { flex: 1; overflow: hidden; position: relative; min-height: 100vh; }
 
   /* ── Logger Panel ── */
   .logger-panel { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 28px 24px; overflow-y: auto; }
@@ -314,14 +314,18 @@ AGENTS.forEach(a => {
   sel.appendChild(opt);
 });
 
-// ── Load RC Embeddable ───────────────────────────────────────────────────────
+// ── Load RC Embeddable as iframe ─────────────────────────────────────────────
 function loadRCWidget() {
-  const script = document.createElement('script');
-  script.src = 'https://apps.ringcentral.com/integration/ringcentral-embeddable/latest/adapter.js';
-  script.setAttribute('data-client-id', RC_CLIENT_ID);
-  script.setAttribute('data-app-server', RC_SERVER);
-  script.setAttribute('data-enable-error-report', 'false');
-  document.body.appendChild(script);
+  const container = document.getElementById('rc-widget-container');
+  const iframe = document.createElement('iframe');
+  const rcURL = 'https://apps.ringcentral.com/integration/ringcentral-embeddable/latest/app.html' +
+    '?clientId=' + RC_CLIENT_ID +
+    '&appServer=' + encodeURIComponent(RC_SERVER) +
+    '&redirectUri=' + encodeURIComponent('https://ringcentral.github.io/ringcentral-embeddable/redirect.html');
+  iframe.src = rcURL;
+  iframe.style.cssText = 'width:100%;height:100%;border:none;min-height:600px;';
+  iframe.allow = 'microphone; camera; autoplay';
+  container.appendChild(iframe);
 }
 
 // ── Listen for RC call events ────────────────────────────────────────────────
