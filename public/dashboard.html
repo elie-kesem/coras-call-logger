@@ -369,11 +369,12 @@ async function loadData() {
   try {
     const res = await fetch('/api/report?' + params.toString());
     const data = await res.json();
-    if (data.error && (!data.rows || data.rows.length === 0)) {
-      showToast('Could not load data from Google Sheets. Showing demo data.');
+    const rows = data.rows || [];
+    if (rows.length === 0) {
+      showToast('No data returned from Google Sheets — see instructions below to enable the read endpoint.');
       allRows = generateDemoData();
     } else {
-      allRows = normalizeRows(data.rows || []);
+      allRows = normalizeRows(rows);
     }
   } catch (e) {
     showToast('Network error — showing demo data.');
