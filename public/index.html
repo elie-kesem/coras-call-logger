@@ -377,15 +377,33 @@ function loadRCWidget() {
 }
 
 // ── Listen for RC call events ────────────────────────────────────────────────
+function normalizeDirection(dir) {
+  return (dir || '').toLowerCase() === 'outbound' ? 'Outbound' : 'Inbound';
+}
+
 window.addEventListener('message', (e) => {
   const data = e.data;
   if (!data || !data.type) return;
+
+  // Capture outbound call direction as soon as user initiates the call
+  if (data.type === 'rc-call-init-notify') {
+    const call = data.call || {};
+    activeCallData = {
+      direction: 'Outbound',
+      sessionId: call.sessionId || '',
+      from: call.from?.phoneNumber || call.fromNumber || '',
+      fromName: call.from?.name || call.fromName || '',
+      to: call.to?.phoneNumber || call.toNumber || '',
+      toName: call.to?.name || call.toName || '',
+    };
+    if (!callStartTime) callStartTime = Date.now();
+  }
 
   if (data.type === 'rc-active-call-notify') {
     const call = data.call || {};
     if (call.telephonyStatus && call.telephonyStatus !== 'NoCall') {
       activeCallData = {
-        direction: call.direction === 'Outbound' ? 'Outbound' : 'Inbound',
+        direction: normalizeDirection(call.direction),
         sessionId: call.sessionId || '',
         from: call.from?.phoneNumber || call.fromNumber || '',
         fromName: call.from?.name || call.fromName || '',
@@ -401,7 +419,7 @@ window.addEventListener('message', (e) => {
     const durationSeconds = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
     callStartTime = null;
 
-    const direction = activeCallData.direction || (call.direction === 'Outbound' ? 'Outbound' : 'Inbound');
+    const direction = activeCallData.direction || normalizeDirection(call.direction);
     const isOut = direction === 'Outbound';
 
     const otherPhone = isOut
