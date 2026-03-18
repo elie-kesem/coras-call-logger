@@ -28,6 +28,29 @@ const wss = new WebSocket.Server({ server });
 
 app.use(cors());
 app.use(express.json());
+
+// ── Basic Auth for admin pages ────────────────────────────────────────────────
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'coras2024';
+
+function requireAuth(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Basic ')) {
+    const decoded = Buffer.from(authHeader.slice(6), 'base64').toString('utf8');
+    const [user, pass] = decoded.split(':');
+    if (user === ADMIN_USER && pass === ADMIN_PASSWORD) return next();
+  }
+  res.set('WWW-Authenticate', 'Basic realm="CORAS Admin"');
+  res.status(401).send('Unauthorized');
+}
+
+app.get('/dashboard.html', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+app.get('/suggestions.html', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'suggestions.html'));
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const agents = new Map();        // extensionId -> ws
@@ -244,7 +267,7 @@ app.post('/api/submit', async (req, res) => {
 });
 
 // ── Report: fetch rows from Google Sheets via Apps Script ────────────────────
-app.get('/api/report', async (req, res) => {
+app.get('/api/report', requireAuth, async (req, res) => {
   try {
     const url = new URL(APPS_SCRIPT_URL);
     // Forward any query params (startDate, endDate, agent) to the script
@@ -284,7 +307,7 @@ app.post('/api/suggest', (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/suggestions', (req, res) => {
+app.get('/api/suggestions', requireAuth, (req, res) => {
   res.json(loadSuggestions());
 });
 
