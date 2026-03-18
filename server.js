@@ -31,7 +31,7 @@ app.use(express.json());
 
 // ── Basic Auth for admin pages ────────────────────────────────────────────────
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'coras2024';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Ilovecoras1!';
 
 function requireAuth(req, res, next) {
   const authHeader = req.headers['authorization'];
