@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CORAS — Suggestions</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #1c2330; --border: #2a3441;
+    --accent: #00c896; --accent-dim: rgba(0,200,150,0.12); --accent2: #0ea5e9;
+    --warn: #f59e0b; --danger: #ef4444; --text: #e6edf3;
+    --text-muted: #7d8590; --text-dim: #4d5566; --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 32px 24px; }
+  .page { max-width: 860px; margin: 0 auto; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  h1 { font-size: 18px; font-weight: 600; }
+  .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .back-link { font-size: 12px; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 4px; }
+  .back-link:hover { color: var(--accent); }
+  .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+  .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .count { font-size: 12px; color: var(--text-dim); margin-left: auto; font-family: 'DM Mono', monospace; }
+  .empty { text-align: center; padding: 60px 0; color: var(--text-dim); font-size: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .suggestion-text { font-size: 15px; font-weight: 600; color: var(--text); flex: 1; }
+  .badges { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+  .badge { font-size: 10px; font-weight: 500; padding: 2px 9px; border-radius: 20px; font-family: 'DM Mono', monospace; white-space: nowrap; }
+  .badge-service { background: rgba(14,165,233,0.12); color: var(--accent2); border: 1px solid rgba(14,165,233,0.25); }
+  .badge-outcome { background: rgba(245,158,11,0.12); color: var(--warn); border: 1px solid rgba(245,158,11,0.25); }
+  .badge-inbound { background: rgba(14,165,233,0.1); color: var(--accent2); border: 1px solid rgba(14,165,233,0.2); }
+  .badge-outbound { background: rgba(245,158,11,0.1); color: var(--warn); border: 1px solid rgba(245,158,11,0.2); }
+  .tree-path { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-muted); line-height: 1.6; }
+  .tree-path .node { color: var(--text); }
+  .tree-path .arrow { color: var(--text-dim); margin: 0 6px; }
+  .tree-path .suggestion-node { color: var(--accent); font-weight: 600; }
+  .tree-path .placeholder { color: var(--text-dim); font-style: italic; }
+  .tree-label { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px; }
+  .meta { display: flex; gap: 18px; font-size: 11px; color: var(--text-dim); font-family: 'DM Mono', monospace; }
+  .meta span { display: flex; align-items: center; gap: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-dot"></div>
+      <div>
+        <h1>Category Suggestions</h1>
+        <div class="subtitle">Submitted by agents during call logging</div>
+      </div>
+    </div>
+    <a class="back-link" href="/">← Back to Logger</a>
+  </div>
+
+  <div class="controls">
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" data-filter="service" onclick="setFilter('service', this)">Service suggestions</button>
+    <button class="filter-btn" data-filter="outcome" onclick="setFilter('outcome', this)">Outcome suggestions</button>
+    <button class="filter-btn" data-filter="inbound" onclick="setFilter('inbound', this)">Inbound</button>
+    <button class="filter-btn" data-filter="outbound" onclick="setFilter('outbound', this)">Outbound</button>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+// Human-readable labels for client type IDs
+const CLIENT_TYPE_LABELS = {
+  new: 'New Client',
+  existing: 'Existing Client',
+  internal: 'Internal Call',
+  appointment_confirmation: 'Appointment Confirmation',
+  returning_missed: 'Returning Missed Call',
+  insurance_verification: 'Insurance Verification',
+};
+
+let allSuggestions = [];
+let activeFilter = 'all';
+
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function buildTreePath(s) {
+  const dir = s.direction || 'Unknown';
+  const ctLabel = CLIENT_TYPE_LABELS[s.clientType] || s.clientType || '?';
+
+  if (s.step === 'service') {
+    // Tree: Direction → Client Type → [Services] → "suggestion" → [Outcomes]
+    return `
+      <div class="tree-label">Where this would appear</div>
+      <div class="tree-path">
+        <span class="node">${dir}</span>
+        <span class="arrow">→</span>
+        <span class="node">${ctLabel}</span>
+        <span class="arrow">→</span>
+        <span class="node">Services</span>
+        <span class="arrow">→</span>
+        <span class="suggestion-node">"${escHtml(s.suggestion)}"</span>
+        <span class="arrow">→</span>
+        <span class="placeholder">[select outcome]</span>
+      </div>`;
+  }
+
+  if (s.step === 'outcome') {
+    const ctx = s.context ? `<span class="node">${escHtml(s.context)}</span><span class="arrow">→</span>` : '';
+    return `
+      <div class="tree-label">Where this would appear</div>
+      <div class="tree-path">
+        <span class="node">${dir}</span>
+        <span class="arrow">→</span>
+        <span class="node">${ctLabel}</span>
+        <span class="arrow">→</span>
+        ${ctx}
+        <span class="node">Outcomes</span>
+        <span class="arrow">→</span>
+        <span class="suggestion-node">"${escHtml(s.suggestion)}"</span>
+        <span class="arrow">→</span>
+        <span class="placeholder">[notes &amp; submit]</span>
+      </div>`;
+  }
+
+  return '';
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function render() {
+  const filtered = allSuggestions.filter(s => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'service') return s.step === 'service';
+    if (activeFilter === 'outcome') return s.step === 'outcome';
+    if (activeFilter === 'inbound') return (s.direction || '').toLowerCase() === 'inbound';
+    if (activeFilter === 'outbound') return (s.direction || '').toLowerCase() === 'outbound';
+    return true;
+  }).slice().reverse(); // newest first
+
+  document.getElementById('count').textContent = filtered.length + ' suggestion' + (filtered.length !== 1 ? 's' : '');
+
+  const list = document.getElementById('list');
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty">No suggestions yet.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(s => {
+    const dir = (s.direction || '').toLowerCase();
+    const dirBadge = `<span class="badge badge-${dir}">${s.direction || 'Unknown'}</span>`;
+    const stepBadge = s.step
+      ? `<span class="badge badge-${s.step}">${s.step === 'service' ? 'Service suggestion' : 'Outcome suggestion'}</span>`
+      : '';
+    const ts = s.timestamp ? new Date(s.timestamp).toLocaleString() : '';
+    const ctLabel = CLIENT_TYPE_LABELS[s.clientType] || s.clientType || '';
+    return `
+      <div class="card">
+        <div class="card-top">
+          <div class="suggestion-text">"${escHtml(s.suggestion)}"</div>
+          <div class="badges">${dirBadge}${stepBadge}</div>
+        </div>
+        ${buildTreePath(s)}
+        <div class="meta">
+          <span>👤 ${escHtml(s.agentName || 'Unknown')}</span>
+          ${ctLabel ? `<span>📋 ${escHtml(ctLabel)}</span>` : ''}
+          ${s.context ? `<span>🔗 ${escHtml(s.context)}</span>` : ''}
+          <span>🕐 ${ts}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function load() {
+  try {
+    const res = await fetch('/api/suggestions');
+    allSuggestions = await res.json();
+  } catch { allSuggestions = []; }
+  render();
+}
+
+load();
+</script>
+</body>
+</html>
