@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CORAS Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #1c2330; --border: #2a3441;
+    --accent: #00c896; --accent-dim: rgba(0,200,150,0.12); --accent2: #0ea5e9;
+    --warn: #f59e0b; --danger: #ef4444; --success: #22c55e;
+    --text: #e6edf3; --text-muted: #7d8590; --text-dim: #4d5566; --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── Top nav ── */
+  .nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .nav-left { display: flex; align-items: center; gap: 10px; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .nav-title { font-size: 13px; font-weight: 600; }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-link { font-size: 12px; color: var(--text-muted); text-decoration: none; padding: 5px 12px; border-radius: 6px; transition: all 0.15s; }
+  .nav-link:hover { background: var(--surface2); color: var(--text); }
+  .nav-link.active { background: var(--accent-dim); color: var(--accent); }
+
+  /* ── Main layout ── */
+  .main { padding: 28px 24px; max-width: 1300px; margin: 0 auto; }
+
+  /* ── Filters bar ── */
+  .filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .filters label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  input[type="date"], select.filter-sel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px;
+    padding: 7px 10px; outline: none; transition: border-color 0.15s;
+  }
+  input[type="date"]:focus, select.filter-sel:focus { border-color: var(--accent); }
+  select.filter-sel { font-family: 'DM Sans', sans-serif; cursor: pointer; padding-right: 24px; }
+  select.filter-sel option { background: var(--surface2); }
+  .btn { padding: 7px 16px; border-radius: 8px; border: none; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+  .btn-ghost:hover { border-color: var(--text-muted); color: var(--text); }
+  .filters-spacer { flex: 1; }
+  .last-updated { font-size: 11px; color: var(--text-dim); font-family: 'DM Mono', monospace; }
+
+  /* ── Stat cards ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+  .stat-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .stat-value { font-size: 28px; font-weight: 600; line-height: 1; font-family: 'DM Mono', monospace; }
+  .stat-sub { font-size: 11px; color: var(--text-dim); }
+  .stat-card.accent-card { border-color: rgba(0,200,150,0.3); background: rgba(0,200,150,0.06); }
+  .stat-card.accent-card .stat-value { color: var(--accent); }
+  .stat-card.blue-card { border-color: rgba(14,165,233,0.3); background: rgba(14,165,233,0.06); }
+  .stat-card.blue-card .stat-value { color: var(--accent2); }
+  .stat-card.warn-card { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.06); }
+  .stat-card.warn-card .stat-value { color: var(--warn); }
+
+  /* ── Two-col charts ── */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 800px) { .charts-row { grid-template-columns: 1fr; } }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .chart-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 14px; }
+
+  /* ── Bar chart ── */
+  .bar-list { display: flex; flex-direction: column; gap: 8px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; }
+  .bar-label { font-size: 11px; color: var(--text-muted); width: 160px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.4s ease; }
+  .bar-count { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); width: 30px; text-align: right; flex-shrink: 0; }
+
+  /* ── Agent leaderboard ── */
+  .agent-list { display: flex; flex-direction: column; gap: 6px; }
+  .agent-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; background: var(--surface2); }
+  .agent-rank { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); width: 18px; text-align: center; }
+  .agent-name { font-size: 12px; flex: 1; }
+  .agent-count { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--accent); font-weight: 600; }
+
+  /* ── Table ── */
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .table-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .table-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .table-count { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); }
+  .table-search { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 5px 10px; outline: none; width: 180px; transition: border-color 0.15s; }
+  .table-search:focus { border-color: var(--accent); }
+  .table-search::placeholder { color: var(--text-dim); }
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  th { padding: 9px 14px; text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); white-space: nowrap; cursor: pointer; user-select: none; }
+  th:hover { color: var(--text-muted); }
+  th.sorted { color: var(--accent); }
+  th .sort-arrow { margin-left: 3px; }
+  tbody tr { border-bottom: 1px solid rgba(42,52,65,0.5); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  td { padding: 9px 14px; vertical-align: middle; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+  td.mono { font-family: 'DM Mono', monospace; }
+  .pill { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 20px; font-family: 'DM Mono', monospace; display: inline-block; }
+  .pill-inbound { background: rgba(14,165,233,0.15); color: var(--accent2); border: 1px solid rgba(14,165,233,0.3); }
+  .pill-outbound { background: rgba(245,158,11,0.12); color: var(--warn); border: 1px solid rgba(245,158,11,0.3); }
+  .pill-new { background: rgba(0,200,150,0.12); color: var(--accent); border: 1px solid rgba(0,200,150,0.3); }
+  .pill-existing { background: rgba(14,165,233,0.1); color: var(--accent2); border: 1px solid rgba(14,165,233,0.2); }
+  .pill-internal { background: rgba(245,158,11,0.1); color: var(--warn); border: 1px solid rgba(245,158,11,0.2); }
+
+  /* ── Pagination ── */
+  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--border); }
+  .page-info { font-size: 11px; color: var(--text-dim); font-family: 'DM Mono', monospace; }
+  .page-btns { display: flex; gap: 4px; }
+  .page-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: 'DM Mono', monospace; transition: all 0.15s; }
+  .page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .page-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+  /* ── Empty / loading ── */
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 60px; color: var(--text-dim); }
+  .empty-icon { font-size: 32px; }
+  .empty-state p { font-size: 13px; }
+  .loading { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); padding: 40px; justify-content: center; }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Toast ── */
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--danger); color: #fff; padding: 10px 22px; border-radius: 40px; font-weight: 600; font-size: 13px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); z-index: 999; white-space: nowrap; }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <div class="logo-dot"></div>
+    <span class="nav-title">CORAS Call Logger</span>
+  </div>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Logger</a>
+    <a href="/dashboard.html" class="nav-link active">Dashboard</a>
+  </div>
+</nav>
+
+<div class="main">
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="filter-group">
+      <label>From</label>
+      <input type="date" id="filter-start"/>
+    </div>
+    <div class="filter-group">
+      <label>To</label>
+      <input type="date" id="filter-end"/>
+    </div>
+    <div class="filter-group">
+      <label>Agent</label>
+      <select class="filter-sel" id="filter-agent">
+        <option value="">All Agents</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Direction</label>
+      <select class="filter-sel" id="filter-direction">
+        <option value="">All</option>
+        <option value="Inbound">Inbound</option>
+        <option value="Outbound">Outbound</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Client</label>
+      <select class="filter-sel" id="filter-client">
+        <option value="">All</option>
+        <option value="new">New</option>
+        <option value="existing">Existing</option>
+        <option value="internal">Internal</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="applyFilters()">Apply</button>
+    <button class="btn btn-ghost" onclick="resetFilters()">Reset</button>
+    <div class="filters-spacer"></div>
+    <span class="last-updated" id="last-updated"></span>
+    <button class="btn btn-ghost" onclick="loadData()">↺ Refresh</button>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card accent-card">
+      <span class="stat-label">Total Calls</span>
+      <span class="stat-value" id="stat-total">—</span>
+      <span class="stat-sub" id="stat-period">Loading…</span>
+    </div>
+    <div class="stat-card blue-card">
+      <span class="stat-label">Inbound</span>
+      <span class="stat-value" id="stat-inbound">—</span>
+      <span class="stat-sub" id="stat-inbound-pct"></span>
+    </div>
+    <div class="stat-card warn-card">
+      <span class="stat-label">Outbound</span>
+      <span class="stat-value" id="stat-outbound">—</span>
+      <span class="stat-sub" id="stat-outbound-pct"></span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">New Clients</span>
+      <span class="stat-value" id="stat-new">—</span>
+      <span class="stat-sub" id="stat-new-pct"></span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Appointments</span>
+      <span class="stat-value" id="stat-appt">—</span>
+      <span class="stat-sub">Scheduled</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Avg Duration</span>
+      <span class="stat-value" id="stat-avg-dur">—</span>
+      <span class="stat-sub">minutes:seconds</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Follow-Ups</span>
+      <span class="stat-value" id="stat-followup">—</span>
+      <span class="stat-sub">Required</span>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">Top Outcomes</div>
+      <div class="bar-list" id="outcome-chart"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Calls by Agent</div>
+      <div class="agent-list" id="agent-chart"></div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="table-title">Call Log</span>
+        <span class="table-count" id="table-count"></span>
+      </div>
+      <input class="table-search" id="table-search" placeholder="Search…" oninput="onSearch()"/>
+    </div>
+    <div class="tbl-wrap">
+      <div id="table-body-wrap">
+        <div class="loading"><div class="spinner"></div>Loading call logs…</div>
+      </div>
+    </div>
+    <div class="pagination" id="pagination" style="display:none;">
+      <span class="page-info" id="page-info"></span>
+      <div class="page-btns" id="page-btns"></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const AGENTS = [
+  { name: 'Amy Green', extensionId: '63747196007' },
+  { name: 'Anabell Rosario', extensionId: '62824418006' },
+  { name: 'Becca Lewis', extensionId: '63866477007' },
+  { name: 'Bennett Johnson', extensionId: '62842636006' },
+  { name: 'Catherine Asem', extensionId: '63794397007' },
+  { name: 'Chelsea Hickey', extensionId: '63747245007' },
+  { name: 'Christina Spanos', extensionId: '62831034006' },
+  { name: 'Claudia Corzo', extensionId: '63747246007' },
+  { name: 'Cynthia Prange', extensionId: '63747234007' },
+  { name: 'Danshanara Turlington', extensionId: '63747233007' },
+  { name: 'Davida Mccray', extensionId: '63747222007' },
+  { name: 'Deniz Sotelo Rodriguez', extensionId: '62842639006' },
+  { name: 'Dennis Thompson', extensionId: '63870421007' },
+  { name: 'Elie Orgel', extensionId: '62842473006' },
+  { name: 'Geraldine Mcginnis', extensionId: '62842635006' },
+  { name: 'Humberto Hernandez', extensionId: '63747197007' },
+  { name: 'Ivoria Harris', extensionId: '62837438006' },
+  { name: 'Jami Knowland', extensionId: '63857220007' },
+  { name: 'Jamie Paolini', extensionId: '63877665007' },
+  { name: 'Jay Cantor', extensionId: '63747205007' },
+  { name: 'Jenn Begley', extensionId: '62843219006' },
+  { name: 'Jennifer Screen', extensionId: '63747244007' },
+  { name: 'Jessica Butler', extensionId: '63866476007' },
+  { name: 'Jocelyn Rodriguez', extensionId: '62842642006' },
+  { name: 'Kelly Emmell', extensionId: '63747195007' },
+  { name: 'Kim Enger', extensionId: '63747227007' },
+  { name: 'Korayma Rojas', extensionId: '62842640006' },
+  { name: 'Kylee Howell', extensionId: '62842546006' },
+  { name: 'Kyra Berrios', extensionId: '63747210007' },
+  { name: 'Larica Curry', extensionId: '62842643006' },
+  { name: 'Latasha Spruill', extensionId: '63747240007' },
+  { name: 'Latoya Smith', extensionId: '63908826007' },
+  { name: 'Latoya Waples', extensionId: '63747239007' },
+  { name: 'Lisa Rodriguez', extensionId: '63870423007' },
+  { name: 'Magali Lopez', extensionId: '62842637006' },
+  { name: 'Marco Hernandez', extensionId: '63747215007' },
+  { name: 'Megan Cooper', extensionId: '63747204007' },
+  { name: 'Melissa Wiley', extensionId: '63747203007' },
+  { name: 'Michael Trzeciakiewicz', extensionId: '63747238007' },
+  { name: 'Naomi Middleton', extensionId: '63747209007' },
+  { name: 'Nestor Lopez', extensionId: '62842638006' },
+  { name: 'Nicole Worseck-Dixon', extensionId: '63851655007' },
+  { name: 'Nya Stanley', extensionId: '63747208007' },
+  { name: 'Okechukwu Obua', extensionId: '63747202007' },
+  { name: 'Patricia Ayers', extensionId: '63747232007' },
+  { name: 'Rache Fitzgerald', extensionId: '62831037006' },
+  { name: 'Ricky Thomas', extensionId: '63747220007' },
+  { name: 'Robert Isakoff', extensionId: '63747221007' },
+  { name: 'Robert Miller', extensionId: '63747223007' },
+  { name: 'Ron Romanelli', extensionId: '63747231007' },
+  { name: 'Sally Rodriguez Sotelo', extensionId: '62842641006' },
+  { name: 'Shannon Brady', extensionId: '62837202006' },
+  { name: 'Shelby Stevens', extensionId: '63747237007' },
+  { name: 'Sixto Rey Troche', extensionId: '63747225007' },
+  { name: 'Stephanie Falkner', extensionId: '62844939006' },
+  { name: 'Susanna Larvie', extensionId: '63747243007' },
+  { name: 'Sylvia Simon', extensionId: '62791907006' },
+  { name: 'Syreeta Monte', extensionId: '63804918007' },
+  { name: 'Uche Obua', extensionId: '63747201007' },
+  { name: 'Victoria Distler', extensionId: '63747207007' },
+];
+
+// Populate agent filter dropdown
+const agentSel = document.getElementById('filter-agent');
+AGENTS.forEach(a => {
+  const opt = document.createElement('option');
+  opt.value = a.name;
+  opt.textContent = a.name;
+  agentSel.appendChild(opt);
+});
+
+// State
+let allRows = [];       // raw from server
+let filtered = [];      // after client-side filters
+let displayed = [];     // after search
+let sortCol = 'timestamp';
+let sortDir = -1;       // -1 = desc
+let page = 1;
+const PAGE_SIZE = 50;
+
+// Set default date range: last 30 days
+(function initDates() {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(start.getDate() - 30);
+  document.getElementById('filter-start').value = start.toISOString().slice(0,10);
+  document.getElementById('filter-end').value = now.toISOString().slice(0,10);
+})();
+
+// ── Fetch ─────────────────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('table-body-wrap').innerHTML = '<div class="loading"><div class="spinner"></div>Loading call logs…</div>';
+  document.getElementById('last-updated').textContent = '';
+
+  const start = document.getElementById('filter-start').value;
+  const end   = document.getElementById('filter-end').value;
+  const agent = document.getElementById('filter-agent').value;
+
+  const params = new URLSearchParams();
+  if (start) params.set('startDate', start);
+  if (end)   params.set('endDate', end);
+  if (agent) params.set('agent', agent);
+
+  try {
+    const res = await fetch('/api/report?' + params.toString());
+    const data = await res.json();
+    if (data.error && (!data.rows || data.rows.length === 0)) {
+      showToast('Could not load data from Google Sheets. Showing demo data.');
+      allRows = generateDemoData();
+    } else {
+      allRows = normalizeRows(data.rows || []);
+    }
+  } catch (e) {
+    showToast('Network error — showing demo data.');
+    allRows = generateDemoData();
+  }
+
+  document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  applyFilters();
+}
+
+function normalizeRows(rows) {
+  // Rows may be arrays (sheet rows) or objects
+  if (!rows.length) return [];
+  if (Array.isArray(rows[0])) {
+    // First row is header
+    const headers = rows[0].map(h => String(h).toLowerCase().replace(/\s+/g,''));
+    return rows.slice(1).map(r => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = r[i] ?? ''; });
+      return obj;
+    });
+  }
+  return rows;
+}
+
+// ── Filters & stats ───────────────────────────────────────────────────────────
+function applyFilters() {
+  const direction = document.getElementById('filter-direction').value;
+  const client    = document.getElementById('filter-client').value;
+
+  filtered = allRows.filter(r => {
+    if (direction && (r.direction || '').toLowerCase() !== direction.toLowerCase()) return false;
+    if (client    && (r.clienttype || r.clientType || '').toLowerCase() !== client.toLowerCase()) return false;
+    return true;
+  });
+
+  page = 1;
+  renderStats(filtered);
+  renderCharts(filtered);
+  onSearch();
+}
+
+function resetFilters() {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(start.getDate() - 30);
+  document.getElementById('filter-start').value = start.toISOString().slice(0,10);
+  document.getElementById('filter-end').value = now.toISOString().slice(0,10);
+  document.getElementById('filter-agent').value = '';
+  document.getElementById('filter-direction').value = '';
+  document.getElementById('filter-client').value = '';
+  document.getElementById('table-search').value = '';
+  loadData();
+}
+
+function onSearch() {
+  const q = document.getElementById('table-search').value.trim().toLowerCase();
+  if (!q) {
+    displayed = [...filtered];
+  } else {
+    displayed = filtered.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
+  }
+  sortRows();
+  page = 1;
+  renderTable();
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function renderStats(rows) {
+  const total    = rows.length;
+  const inbound  = rows.filter(r => (r.direction||'').toLowerCase() === 'inbound').length;
+  const outbound = rows.filter(r => (r.direction||'').toLowerCase() === 'outbound').length;
+  const newC     = rows.filter(r => (r.clienttype||r.clientType||'').toLowerCase() === 'new').length;
+  const appt     = rows.filter(r => (r.outcome||'').includes('Appointment Scheduled')).length;
+  const followup = rows.filter(r => (r.outcome||'').includes('Follow Up')).length;
+
+  // Average duration
+  const durations = rows.map(r => parseDuration(r.duration||'')).filter(d => d > 0);
+  const avgDur = durations.length ? Math.round(durations.reduce((a,b) => a+b, 0) / durations.length) : 0;
+
+  const pct = (n) => total ? ` (${Math.round(n/total*100)}%)` : '';
+
+  set('stat-total',       total);
+  set('stat-period',      `${rows.length} calls in range`);
+  set('stat-inbound',     inbound);
+  set('stat-inbound-pct', `${pct(inbound)} of calls`);
+  set('stat-outbound',    outbound);
+  set('stat-outbound-pct',`${pct(outbound)} of calls`);
+  set('stat-new',         newC);
+  set('stat-new-pct',     `${pct(newC)} of calls`);
+  set('stat-appt',        appt);
+  set('stat-avg-dur',     formatDuration(avgDur));
+  set('stat-followup',    followup);
+}
+
+function set(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+
+function parseDuration(str) {
+  if (!str) return 0;
+  const parts = String(str).split(':');
+  if (parts.length === 2) return parseInt(parts[0])*60 + parseInt(parts[1]);
+  return parseInt(str) || 0;
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+function renderCharts(rows) {
+  // Outcome counts
+  const outcomeCounts = {};
+  rows.forEach(r => {
+    const o = r.outcome || 'Unknown';
+    outcomeCounts[o] = (outcomeCounts[o] || 0) + 1;
+  });
+  const topOutcomes = Object.entries(outcomeCounts).sort((a,b) => b[1]-a[1]).slice(0, 8);
+  const maxO = topOutcomes[0]?.[1] || 1;
+  const outcomeChart = document.getElementById('outcome-chart');
+  if (topOutcomes.length) {
+    outcomeChart.innerHTML = topOutcomes.map(([label, count]) => `
+      <div class="bar-row">
+        <span class="bar-label" title="${label}">${label}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(count/maxO*100)}%"></div></div>
+        <span class="bar-count">${count}</span>
+      </div>`).join('');
+  } else {
+    outcomeChart.innerHTML = '<div class="empty-state"><span class="empty-icon">📊</span><p>No data</p></div>';
+  }
+
+  // Agent counts
+  const agentCounts = {};
+  rows.forEach(r => {
+    const a = r.agentname || r.agentName || 'Unknown';
+    agentCounts[a] = (agentCounts[a] || 0) + 1;
+  });
+  const topAgents = Object.entries(agentCounts).sort((a,b) => b[1]-a[1]).slice(0, 8);
+  const agentChart = document.getElementById('agent-chart');
+  if (topAgents.length) {
+    agentChart.innerHTML = topAgents.map(([name, count], i) => `
+      <div class="agent-row">
+        <span class="agent-rank">${i+1}</span>
+        <span class="agent-name">${name}</span>
+        <span class="agent-count">${count}</span>
+      </div>`).join('');
+  } else {
+    agentChart.innerHTML = '<div class="empty-state"><span class="empty-icon">👥</span><p>No data</p></div>';
+  }
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+const COLS = [
+  { key: 'timestamp',  label: 'Date / Time' },
+  { key: 'agentname',  label: 'Agent' },
+  { key: 'callername', label: 'Caller Name' },
+  { key: 'callerphone',label: 'Phone', mono: true },
+  { key: 'direction',  label: 'Dir.' },
+  { key: 'clienttype', label: 'Client' },
+  { key: 'service',    label: 'Service' },
+  { key: 'outcome',    label: 'Outcome' },
+  { key: 'duration',   label: 'Duration', mono: true },
+  { key: 'notes',      label: 'Notes' },
+  { key: 'followupdate', label: 'Follow-Up', mono: true },
+];
+
+function sortRows() {
+  const col = sortCol;
+  displayed.sort((a, b) => {
+    let av = (a[col] || a[col.replace(/([A-Z])/g, c => c.toLowerCase())] || '');
+    let bv = (b[col] || b[col.replace(/([A-Z])/g, c => c.toLowerCase())] || '');
+    if (col === 'timestamp') { av = new Date(av||0); bv = new Date(bv||0); }
+    return av < bv ? sortDir : av > bv ? -sortDir : 0;
+  });
+}
+
+function renderTable() {
+  const total = displayed.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (page > totalPages) page = totalPages;
+  const start = (page-1)*PAGE_SIZE;
+  const slice = displayed.slice(start, start + PAGE_SIZE);
+
+  document.getElementById('table-count').textContent = total ? `${total.toLocaleString()} rows` : '';
+
+  const wrap = document.getElementById('table-body-wrap');
+  if (!total) {
+    wrap.innerHTML = '<div class="empty-state"><span class="empty-icon">📋</span><p>No call logs found for the selected filters.</p></div>';
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+
+  const thead = COLS.map(c => {
+    const arrow = c.key === sortCol ? (sortDir === -1 ? '↓' : '↑') : '';
+    const cls = c.key === sortCol ? 'sorted' : '';
+    return `<th class="${cls}" onclick="setSort('${c.key}')">${c.label}<span class="sort-arrow">${arrow}</span></th>`;
+  }).join('');
+
+  const tbody = slice.map(r => {
+    const cells = COLS.map(c => {
+      let val = r[c.key] || r[c.key.replace(/([a-z])([A-Z])/g, '$1$2').toLowerCase()] || '';
+      // normalize casing fallback
+      if (!val) {
+        const lk = c.key.toLowerCase();
+        val = Object.entries(r).find(([k]) => k.toLowerCase() === lk)?.[1] || '';
+      }
+      let inner = escHtml(String(val));
+      if (c.key === 'direction') {
+        inner = val ? `<span class="pill pill-${val.toLowerCase()}">${val}</span>` : '';
+      } else if (c.key === 'clienttype') {
+        inner = val ? `<span class="pill pill-${val.toLowerCase()}">${val}</span>` : '';
+      } else if (c.key === 'timestamp' && val) {
+        try { inner = new Date(val).toLocaleString(); } catch {}
+      }
+      return `<td class="${c.mono ? 'mono' : ''}" title="${escHtml(String(val))}">${inner}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
+  wrap.innerHTML = `<table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>`;
+
+  // Pagination
+  document.getElementById('page-info').textContent = `${start+1}–${Math.min(start+PAGE_SIZE, total)} of ${total.toLocaleString()}`;
+  const pagEl = document.getElementById('pagination');
+  pagEl.style.display = 'flex';
+
+  const btns = document.getElementById('page-btns');
+  let pagesHtml = `<button class="page-btn" onclick="goPage(${page-1})" ${page<=1?'disabled':''}>‹</button>`;
+  const range = pageRange(page, totalPages);
+  range.forEach(p => {
+    if (p === '…') pagesHtml += `<span class="page-btn" style="cursor:default">…</span>`;
+    else pagesHtml += `<button class="page-btn ${p===page?'active':''}" onclick="goPage(${p})">${p}</button>`;
+  });
+  pagesHtml += `<button class="page-btn" onclick="goPage(${page+1})" ${page>=totalPages?'disabled':''}>›</button>`;
+  btns.innerHTML = pagesHtml;
+}
+
+function pageRange(cur, total) {
+  if (total <= 7) return Array.from({length:total},(_,i)=>i+1);
+  if (cur <= 4) return [1,2,3,4,5,'…',total];
+  if (cur >= total-3) return [1,'…',total-4,total-3,total-2,total-1,total];
+  return [1,'…',cur-1,cur,cur+1,'…',total];
+}
+
+function setSort(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = -1; }
+  sortRows();
+  renderTable();
+}
+
+function goPage(p) {
+  page = p;
+  renderTable();
+  document.querySelector('.table-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDuration(s) {
+  if (!s) return '0:00';
+  return Math.floor(s/60) + ':' + (s%60).toString().padStart(2,'0');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ── Demo data (when Google Sheets is unavailable) ─────────────────────────────
+function generateDemoData() {
+  const outcomes = ['Appointment Scheduled','Left Voicemail','Not Interested','Follow Up Required','Transferred','Intake Started','Insurance Verified','No Answer','Callback Requested'];
+  const services = ['MAT / Methadone Treatment','IOP (Intensive Outpatient)','General Inquiry','Insurance Verification','Appointment Reschedule / Cancel','PHP (Partial Hospitalization)'];
+  const clientTypes = ['new','existing','internal'];
+  const dirs = ['Inbound','Outbound'];
+  const agents = AGENTS.slice(0,12).map(a => a.name);
+  const rows = [];
+  const now = Date.now();
+  for (let i = 0; i < 120; i++) {
+    const d = new Date(now - Math.random() * 30 * 86400000);
+    const dur = Math.floor(Math.random() * 600);
+    rows.push({
+      timestamp:   d.toISOString(),
+      agentname:   agents[Math.floor(Math.random()*agents.length)],
+      callername:  ['John Smith','Maria Garcia','James Brown','Emily Davis','Michael Wilson'][i%5],
+      callerphone: '+1302555' + String(1000+i).slice(1),
+      direction:   dirs[Math.floor(Math.random()*dirs.length)],
+      clienttype:  clientTypes[Math.floor(Math.random()*clientTypes.length)],
+      service:     services[Math.floor(Math.random()*services.length)],
+      outcome:     outcomes[Math.floor(Math.random()*outcomes.length)],
+      duration:    formatDuration(dur),
+      notes:       '',
+      followupdate:'',
+    });
+  }
+  return rows.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
