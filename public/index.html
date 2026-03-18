@@ -197,6 +197,14 @@
               <label id="step1-field-label">Call Type <span class="req">*</span></label>
               <!-- dynamically rendered based on direction -->
               <div class="client-toggle" id="client-type-grid"></div>
+              <!-- Suggest a new call type -->
+              <button class="suggest-btn" id="suggest-btn-calltype" onclick="showSuggestInput('calltype')">+ Suggest a new category</button>
+              <div class="suggest-row hidden" id="suggest-row-calltype">
+                <input class="suggest-input" id="suggest-input-calltype" type="text" placeholder="Describe the new category..." />
+                <button class="suggest-submit" onclick="submitSuggestion('calltype')">Submit</button>
+                <button class="suggest-cancel" onclick="hideSuggestInput('calltype')">Cancel</button>
+              </div>
+              <div class="suggest-success" id="suggest-success-calltype">Suggestion submitted — thank you!</div>
             </div>
           </div>
 
@@ -526,7 +534,7 @@ function showPopup(callData) {
   document.getElementById('followup-date').value = '';
 
   // Reset suggest UI
-  ['service','outcome'].forEach(s => {
+  ['calltype','service','outcome'].forEach(s => {
     document.getElementById('suggest-row-' + s).classList.add('hidden');
     document.getElementById('suggest-btn-' + s).classList.remove('hidden');
     document.getElementById('suggest-input-' + s).value = '';
