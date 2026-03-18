@@ -5,6 +5,15 @@ const http = require('http');
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const fs = require('fs');
+
+const SUGGESTIONS_FILE = path.join(__dirname, 'suggestions.json');
+function loadSuggestions() {
+  try { return JSON.parse(fs.readFileSync(SUGGESTIONS_FILE, 'utf8')); } catch { return []; }
+}
+function saveSuggestions(list) {
+  fs.writeFileSync(SUGGESTIONS_FILE, JSON.stringify(list, null, 2));
+}
 
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL ||
   'https://script.google.com/macros/s/AKfycbzZ9hbLj2ecF9PJgzBpfh3UBTxzGL-WZSawktSdtFeICofuPvLZumeGFGEavH-mQ8SH/exec';
@@ -253,6 +262,30 @@ app.get('/api/report', async (req, res) => {
     console.error('Report fetch error:', err.message);
     res.status(500).json({ error: err.message, rows: [] });
   }
+});
+
+// ── Suggestions ──────────────────────────────────────────────────────────────
+app.post('/api/suggest', (req, res) => {
+  const { agentName, direction, clientType, step, context, suggestion } = req.body;
+  if (!suggestion?.trim()) return res.status(400).json({ error: 'Suggestion text required' });
+  const list = loadSuggestions();
+  list.push({
+    id: uuidv4(),
+    timestamp: new Date().toISOString(),
+    agentName: agentName || 'Unknown',
+    direction: direction || 'Unknown',
+    clientType: clientType || null,
+    step: step || null,
+    context: context || null,
+    suggestion: suggestion.trim(),
+  });
+  saveSuggestions(list);
+  console.log(`Suggestion from ${agentName}: [${step}] "${suggestion.trim()}"`);
+  res.json({ success: true });
+});
+
+app.get('/api/suggestions', (req, res) => {
+  res.json(loadSuggestions());
 });
 
 // ── Test popup ───────────────────────────────────────────────────────────────
