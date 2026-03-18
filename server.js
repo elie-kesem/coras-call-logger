@@ -234,6 +234,27 @@ app.post('/api/submit', async (req, res) => {
   }
 });
 
+// ── Report: fetch rows from Google Sheets via Apps Script ────────────────────
+app.get('/api/report', async (req, res) => {
+  try {
+    const url = new URL(APPS_SCRIPT_URL);
+    // Forward any query params (startDate, endDate, agent) to the script
+    if (req.query.startDate) url.searchParams.set('startDate', req.query.startDate);
+    if (req.query.endDate)   url.searchParams.set('endDate',   req.query.endDate);
+    if (req.query.agent)     url.searchParams.set('agent',     req.query.agent);
+    url.searchParams.set('action', 'read');
+
+    const response = await fetch(url.toString(), { redirect: 'follow' });
+    const text = await response.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { rows: [] }; }
+    res.json(data);
+  } catch (err) {
+    console.error('Report fetch error:', err.message);
+    res.status(500).json({ error: err.message, rows: [] });
+  }
+});
+
 // ── Test popup ───────────────────────────────────────────────────────────────
 app.post('/api/test-popup', (req, res) => {
   const callData = {
