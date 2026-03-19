@@ -5,15 +5,6 @@ const http = require('http');
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
-const fs = require('fs');
-
-const SUGGESTIONS_FILE = path.join(__dirname, 'suggestions.json');
-function loadSuggestions() {
-  try { return JSON.parse(fs.readFileSync(SUGGESTIONS_FILE, 'utf8')); } catch { return []; }
-}
-function saveSuggestions(list) {
-  fs.writeFileSync(SUGGESTIONS_FILE, JSON.stringify(list, null, 2));
-}
 
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL ||
   'https://script.google.com/macros/s/AKfycbzZ9hbLj2ecF9PJgzBpfh3UBTxzGL-WZSawktSdtFeICofuPvLZumeGFGEavH-mQ8SH/exec';
@@ -162,10 +153,14 @@ app.post('/webhook/ringcentral', async (req, res) => {
     }
   }
 
+  // Look up agent name from extension ID
+  const rcAgentName = agentParty?.from?.name || 'Unknown';
+
   const callData = {
     formId: uuidv4(),
     agentId: extId,
-    agentName: agentParty?.from?.name || 'Agent',
+    agentName: rcAgentName,
+    rcAgentName,
     callerPhone: otherPhone,
     callerName: otherName,
     direction,
@@ -200,7 +195,7 @@ app.post('/webhook/ringcentral', async (req, res) => {
 app.post('/api/submit', async (req, res) => {
   const {
     formId, outcome, notes, followUpDate,
-    agentName, callerPhone, callerName,
+    agentName, rcAgentName, callerPhone, callerName,
     direction, duration, startTime, sessionId,
     clientType, service
   } = req.body;
@@ -221,6 +216,7 @@ app.post('/api/submit', async (req, res) => {
     outcome,
     notes: notes || '',
     followUpDate: followUpDate || '',
+    rcAgentName: rcAgentName || '',
   };
 
   try {
@@ -241,51 +237,6 @@ app.post('/api/submit', async (req, res) => {
     console.error('Sheet error:', err.message);
     res.status(500).json({ error: 'Failed to save to Google Sheets', detail: err.message });
   }
-});
-
-// ── Report: fetch rows from Google Sheets via Apps Script ────────────────────
-app.get('/api/report', async (req, res) => {
-  try {
-    const url = new URL(APPS_SCRIPT_URL);
-    // Forward any query params (startDate, endDate, agent) to the script
-    if (req.query.startDate) url.searchParams.set('startDate', req.query.startDate);
-    if (req.query.endDate)   url.searchParams.set('endDate',   req.query.endDate);
-    if (req.query.agent)     url.searchParams.set('agent',     req.query.agent);
-    url.searchParams.set('action', 'read');
-
-    const response = await fetch(url.toString(), { redirect: 'follow' });
-    const text = await response.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = { rows: [] }; }
-    res.json(data);
-  } catch (err) {
-    console.error('Report fetch error:', err.message);
-    res.status(500).json({ error: err.message, rows: [] });
-  }
-});
-
-// ── Suggestions ──────────────────────────────────────────────────────────────
-app.post('/api/suggest', (req, res) => {
-  const { agentName, direction, clientType, step, context, suggestion } = req.body;
-  if (!suggestion?.trim()) return res.status(400).json({ error: 'Suggestion text required' });
-  const list = loadSuggestions();
-  list.push({
-    id: uuidv4(),
-    timestamp: new Date().toISOString(),
-    agentName: agentName || 'Unknown',
-    direction: direction || 'Unknown',
-    clientType: clientType || null,
-    step: step || null,
-    context: context || null,
-    suggestion: suggestion.trim(),
-  });
-  saveSuggestions(list);
-  console.log(`Suggestion from ${agentName}: [${step}] "${suggestion.trim()}"`);
-  res.json({ success: true });
-});
-
-app.get('/api/suggestions', (req, res) => {
-  res.json(loadSuggestions());
 });
 
 // ── Test popup ───────────────────────────────────────────────────────────────
