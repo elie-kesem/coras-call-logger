@@ -19,7 +19,7 @@
   .app-layout { display: flex; flex: 1; min-height: 100vh; }
 
   /* ── Phone Panel ── */
-  .phone-panel { display: none; }
+  .phone-panel { width: 300px; min-width: 300px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
   .phone-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
   .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
@@ -72,7 +72,7 @@
   .field { display: flex; flex-direction: column; gap: 7px; }
   .field label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
   .field label span.req { color: var(--accent); margin-left: 2px; }
-  .client-toggle { display: grid; gap: 8px; }
+  .client-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .toggle-btn { padding: 14px; border-radius: var(--radius); border: 1.5px solid var(--border); background: var(--surface2); color: var(--text-muted); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: all 0.15s; }
   .toggle-btn:hover { border-color: var(--text-dim); color: var(--text); }
   .toggle-btn.selected { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
@@ -104,18 +104,6 @@
   .hidden { display: none !important; }
   .back-btn { background: none; border: none; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 0; }
   .back-btn:hover { color: var(--text); }
-
-  /* ── Suggest feature ── */
-  .suggest-btn { padding: 8px 12px; border-radius: 8px; border: 1.5px dashed var(--border); background: transparent; color: var(--text-dim); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500; text-align: center; transition: all 0.15s; margin-top: 4px; width: 100%; }
-  .suggest-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .suggest-row { display: flex; gap: 8px; margin-top: 4px; align-items: center; }
-  .suggest-input { flex: 1; background: var(--surface2); border: 1.5px solid var(--accent); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 8px 10px; outline: none; }
-  .suggest-input::placeholder { color: var(--text-dim); }
-  .suggest-submit { padding: 7px 14px; border-radius: 8px; border: none; background: var(--accent); color: #000; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-  .suggest-submit:hover { filter: brightness(1.1); }
-  .suggest-cancel { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; }
-  .suggest-cancel:hover { color: var(--text); }
-  .suggest-success { font-size: 11px; color: var(--accent); padding: 6px 10px; background: var(--accent-dim); border: 1px solid rgba(0,200,150,0.3); border-radius: 6px; margin-top: 4px; display: none; }
 </style>
 </head>
 <body>
@@ -181,60 +169,39 @@
         </div>
         <div class="form-body">
           <div class="steps">
-            <div class="step active" id="step1-ind"><div class="step-num">1</div><span id="step1-label">Call Type</span></div>
+            <div class="step active" id="step1-ind"><div class="step-num">1</div><span>Client Type</span></div>
             <div class="step-line"></div>
-            <div class="step" id="step2-ind"><div class="step-num">2</div><span id="step2-ind-label">Service</span></div>
+            <div class="step" id="step2-ind"><div class="step-num">2</div><span>Service</span></div>
             <div class="step-line"></div>
             <div class="step" id="step3-ind"><div class="step-num">3</div><span>Outcome</span></div>
             <div class="step-line"></div>
             <div class="step" id="step4-ind"><div class="step-num">4</div><span>Notes</span></div>
           </div>
           <div class="divider"></div>
-
-          <!-- Step 1: Call Type -->
           <div id="step1">
             <div class="field">
-              <label id="step1-field-label">Call Type <span class="req">*</span></label>
-              <!-- dynamically rendered based on direction -->
-              <div class="client-toggle" id="client-type-grid"></div>
+              <label>Client Type <span class="req">*</span></label>
+              <div class="client-toggle" style="grid-template-columns: 1fr 1fr 1fr;">
+                <button class="toggle-btn" id="btn-new" onclick="selectClientType('new')"><span class="icon">🆕</span>New Client<span class="sub">First time inquiry</span></button>
+                <button class="toggle-btn" id="btn-existing" onclick="selectClientType('existing')"><span class="icon">🔁</span>Existing Client<span class="sub">Already in treatment</span></button>
+                <button class="toggle-btn" id="btn-internal" onclick="selectClientType('internal')"><span class="icon">🏢</span>Internal Call<span class="sub">Staff or admin</span></button>
+              </div>
             </div>
           </div>
-
-          <!-- Step 2: Service / Reason (inbound only) -->
           <div id="step2" class="hidden">
             <button class="back-btn" onclick="goToStep(1)" style="margin-bottom:10px;">← Back</button>
             <div class="field">
               <label id="step2-label">Service Inquired About <span class="req">*</span></label>
               <div class="option-grid" id="option-grid"></div>
-              <!-- Suggest a new service -->
-              <button class="suggest-btn" id="suggest-btn-service" onclick="showSuggestInput('service')">+ Suggest a new option</button>
-              <div class="suggest-row hidden" id="suggest-row-service">
-                <input class="suggest-input" id="suggest-input-service" type="text" placeholder="Describe the new option..." />
-                <button class="suggest-submit" onclick="submitSuggestion('service')">Submit</button>
-                <button class="suggest-cancel" onclick="hideSuggestInput('service')">Cancel</button>
-              </div>
-              <div class="suggest-success" id="suggest-success-service">Suggestion submitted — thank you!</div>
             </div>
           </div>
-
-          <!-- Step 3: Outcome -->
           <div id="step3" class="hidden">
-            <button class="back-btn" id="step3-back-btn" onclick="goBackFromStep3()" style="margin-bottom:10px;">← Back</button>
+            <button class="back-btn" onclick="goToStep(2)" style="margin-bottom:10px;">← Back</button>
             <div class="field">
               <label>Call Outcome <span class="req">*</span></label>
               <div class="outcome-grid" id="outcome-grid"></div>
-              <!-- Suggest a new outcome -->
-              <button class="suggest-btn" id="suggest-btn-outcome" onclick="showSuggestInput('outcome')">+ Suggest a new option</button>
-              <div class="suggest-row hidden" id="suggest-row-outcome">
-                <input class="suggest-input" id="suggest-input-outcome" type="text" placeholder="Describe the new outcome..." />
-                <button class="suggest-submit" onclick="submitSuggestion('outcome')">Submit</button>
-                <button class="suggest-cancel" onclick="hideSuggestInput('outcome')">Cancel</button>
-              </div>
-              <div class="suggest-success" id="suggest-success-outcome">Suggestion submitted — thank you!</div>
             </div>
           </div>
-
-          <!-- Step 4: Notes -->
           <div id="step4" class="hidden">
             <button class="back-btn" onclick="goToStep(3)" style="margin-bottom:10px;">← Back</button>
             <div class="field">
@@ -329,24 +296,10 @@ const NEW_CLIENT_SERVICES = ['MAT / Methadone Treatment','IOP (Intensive Outpati
 const EXISTING_CLIENT_TYPES = ['Appointment Reschedule / Cancel','Prescription Refill','Billing Question','Progress Update','Crisis Support','Lab Results','Referral to Another Location','General Question'];
 const FOLLOWUP_OUTCOMES = ['Follow Up Required','Callback Requested','Appointment Scheduled'];
 
-// ── Call-type definitions ─────────────────────────────────────────────────────
-const INBOUND_TYPES = [
-  { id: 'new',      icon: '🆕', label: 'New Client',     sub: 'First time inquiry' },
-  { id: 'existing', icon: '🔁', label: 'Existing Client', sub: 'Already in treatment' },
-  { id: 'internal', icon: '🏢', label: 'Internal Call',   sub: 'Staff or admin' },
-];
-const OUTBOUND_TYPES = [
-  { id: 'internal',                 icon: '🏢', label: 'Internal Call',            sub: 'Staff or admin' },
-  { id: 'appointment_confirmation', icon: '📅', label: 'Appointment Confirmation', sub: 'Confirming scheduled visit' },
-  { id: 'returning_missed',         icon: '📲', label: 'Returning Missed Call',    sub: 'Calling back a missed call' },
-  { id: 'insurance_verification',   icon: '🔍', label: 'Insurance Verification',   sub: 'Verifying coverage' },
-];
-
 let agentName = localStorage.getItem('coras_agent_name');
 let extensionId = localStorage.getItem('coras_extension_id');
 let ws = null;
 let currentCall = null;
-let isOutbound = false;
 let selectedClientType = null;
 let selectedService = null;
 let selectedOutcome = null;
@@ -381,6 +334,7 @@ window.addEventListener('message', (e) => {
   const data = e.data;
   if (!data || !data.type) return;
 
+  // Track active call
   if (data.type === 'rc-active-call-notify') {
     const call = data.call || {};
     if (call.telephonyStatus && call.telephonyStatus !== 'NoCall') {
@@ -396,18 +350,19 @@ window.addEventListener('message', (e) => {
     }
   }
 
+  // Call ended
   if (data.type === 'rc-call-end-notify') {
     const call = data.call || {};
     const durationSeconds = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
     callStartTime = null;
 
     const direction = activeCallData.direction || (call.direction === 'Outbound' ? 'Outbound' : 'Inbound');
-    const isOut = direction === 'Outbound';
+    const isOutbound = direction === 'Outbound';
 
-    const otherPhone = isOut
+    const otherPhone = isOutbound
       ? (activeCallData.to || call.to?.phoneNumber || call.toNumber || 'Unknown')
       : (activeCallData.from || call.from?.phoneNumber || call.fromNumber || 'Unknown');
-    const otherName = isOut
+    const otherName = isOutbound
       ? (activeCallData.toName || call.to?.name || 'Unknown Caller')
       : (activeCallData.fromName || call.from?.name || 'Unknown Caller');
 
@@ -460,7 +415,7 @@ function initUI() {
   connectWS();
 }
 
-// ── WebSocket ──────────────────────────────────────────────────────────────
+// ── WebSocket (fallback for webhook-based calls) ──────────────────────────────
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}`);
@@ -472,50 +427,21 @@ function connectWS() {
   ws.onclose = () => setTimeout(connectWS, 3000);
 }
 
-// ── Step 1: render call-type buttons based on direction ───────────────────────
-function renderStep1() {
-  const types = isOutbound ? OUTBOUND_TYPES : INBOUND_TYPES;
-  const grid = document.getElementById('client-type-grid');
-  // 4 outbound options → 2×2, 3 inbound options → 3 columns
-  grid.style.gridTemplateColumns = types.length === 4 ? '1fr 1fr' : '1fr 1fr 1fr';
-  grid.innerHTML = '';
-  types.forEach(t => {
-    const btn = document.createElement('button');
-    btn.className = 'toggle-btn';
-    btn.id = 'btn-' + t.id;
-    btn.innerHTML = `<span class="icon">${t.icon}</span>${t.label}<span class="sub">${t.sub}</span>`;
-    btn.onclick = () => selectClientType(t.id, t.label);
-    grid.appendChild(btn);
-  });
-  // Update step indicator labels
-  document.getElementById('step2-ind-label').textContent = isOutbound ? '—' : 'Service';
-}
-
 // ── Form ─────────────────────────────────────────────────────────────────────
 function showPopup(callData) {
   currentCall = callData;
-  isOutbound = callData.direction === 'Outbound';
   selectedClientType = selectedService = selectedOutcome = null;
-
   document.getElementById('b-name').textContent = callData.callerName || 'Unknown Caller';
   document.getElementById('b-phone').textContent = callData.callerPhone || '';
   document.getElementById('b-duration').textContent = formatDuration(callData.duration);
   const dirEl = document.getElementById('b-direction');
   dirEl.textContent = callData.direction || 'Inbound';
-  dirEl.className = 'meta-pill ' + (isOutbound ? 'pill-outbound' : 'pill-inbound');
-
+  dirEl.className = 'meta-pill ' + (callData.direction === 'Outbound' ? 'pill-outbound' : 'pill-inbound');
   document.getElementById('notes').value = '';
   document.getElementById('followup-date').value = '';
-
-  // Reset suggest UI
-  ['service','outcome'].forEach(s => {
-    document.getElementById('suggest-row-' + s).classList.add('hidden');
-    document.getElementById('suggest-btn-' + s).classList.remove('hidden');
-    document.getElementById('suggest-input-' + s).value = '';
-    document.getElementById('suggest-success-' + s).style.display = 'none';
-  });
-
-  renderStep1();
+  document.getElementById('btn-new').classList.remove('selected');
+  document.getElementById('btn-existing').classList.remove('selected');
+  document.getElementById('btn-internal').classList.remove('selected');
   goToStep(1);
   document.getElementById('waiting').style.display = 'none';
   document.getElementById('popup').style.display = 'block';
@@ -530,54 +456,29 @@ function goToStep(n) {
   });
 }
 
-function goBackFromStep3() {
-  // Outbound non-internal skips step 2, so go back to step 1
-  goToStep(isOutbound && selectedClientType !== 'internal' ? 1 : 2);
-}
+async function selectClientType(type) {
+  selectedClientType = type; selectedService = null;
+  document.getElementById('btn-new').classList.toggle('selected', type === 'new');
+  document.getElementById('btn-existing').classList.toggle('selected', type === 'existing');
+  document.getElementById('btn-internal').classList.toggle('selected', type === 'internal');
 
-async function selectClientType(typeId, typeLabel) {
-  selectedClientType = typeId;
-  selectedService = null;
-
-  // Highlight selected button
-  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('selected'));
-  const btn = document.getElementById('btn-' + typeId);
-  if (btn) btn.classList.add('selected');
-
-  if (typeId === 'internal') {
+  if (type === 'internal') {
+    // Auto-submit immediately with no further steps
     selectedService = 'Internal Call';
     selectedOutcome = 'Internal Call';
     await submitForm();
     return;
   }
 
-  if (isOutbound) {
-    // Outbound non-internal: the type IS the service — skip step 2, go to outcomes
-    selectedService = typeLabel;
-    const grid = document.getElementById('outcome-grid');
-    grid.innerHTML = '';
-    OUTCOMES.forEach(o => {
-      const btn = document.createElement('button');
-      btn.className = 'outcome-btn'; btn.textContent = o;
-      btn.onclick = () => selectOutcome(o, btn);
-      grid.appendChild(btn);
-    });
-    // Mark step 2 as done (skipped)
-    document.getElementById('step2-ind').className = 'step done';
-    goToStep(3);
-    return;
-  }
-
-  // Inbound: show service step
-  const items = typeId === 'new' ? NEW_CLIENT_SERVICES : EXISTING_CLIENT_TYPES;
-  document.getElementById('step2-label').innerHTML = (typeId === 'new' ? 'Service Inquired About' : 'Reason for Call') + ' <span class="req">*</span>';
+  const items = type === 'new' ? NEW_CLIENT_SERVICES : EXISTING_CLIENT_TYPES;
+  document.getElementById('step2-label').innerHTML = (type === 'new' ? 'Service Inquired About' : 'Reason for Call') + ' <span class="req">*</span>';
   const grid = document.getElementById('option-grid');
   grid.innerHTML = '';
   items.forEach(item => {
-    const b = document.createElement('button');
-    b.className = 'option-btn'; b.textContent = item;
-    b.onclick = () => selectService(item, b);
-    grid.appendChild(b);
+    const btn = document.createElement('button');
+    btn.className = 'option-btn'; btn.textContent = item;
+    btn.onclick = () => selectService(item, btn);
+    grid.appendChild(btn);
   });
   goToStep(2);
 }
@@ -634,62 +535,18 @@ async function submitForm() {
   btn.disabled = false; btn.textContent = 'Save Call Log';
 }
 
-// ── Suggest feature ──────────────────────────────────────────────────────────
-function showSuggestInput(step) {
-  document.getElementById('suggest-btn-' + step).classList.add('hidden');
-  document.getElementById('suggest-row-' + step).classList.remove('hidden');
-  document.getElementById('suggest-input-' + step).focus();
-}
-
-function hideSuggestInput(step) {
-  document.getElementById('suggest-row-' + step).classList.add('hidden');
-  document.getElementById('suggest-btn-' + step).classList.remove('hidden');
-  document.getElementById('suggest-input-' + step).value = '';
-}
-
-async function submitSuggestion(step) {
-  const input = document.getElementById('suggest-input-' + step);
-  const text = input.value.trim();
-  if (!text) { input.focus(); return; }
-
-  const payload = {
-    agentName: agentName || 'Unknown',
-    direction: currentCall?.direction || 'Unknown',
-    clientType: selectedClientType,
-    step,
-    // For outcome suggestions, include the service as context
-    context: step === 'outcome' ? selectedService : null,
-    suggestion: text,
-  };
-
-  try {
-    await fetch('/api/suggest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-  } catch { /* non-blocking */ }
-
-  document.getElementById('suggest-row-' + step).classList.add('hidden');
-  document.getElementById('suggest-btn-' + step).classList.remove('hidden');
-  input.value = '';
-  const success = document.getElementById('suggest-success-' + step);
-  success.style.display = 'block';
-  setTimeout(() => { success.style.display = 'none'; }, 3000);
-}
-
 function formatDuration(s) {
   if (!s) return '0:00';
   return Math.floor(s/60) + ':' + (s%60).toString().padStart(2,'0');
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-// RC widget hidden — agents use RingCentral desktop app
-// loadRCWidget();
+loadRCWidget();
 if (extensionId && agentName) {
   document.getElementById('agent-select').value = extensionId;
   initUI();
 }
 </script>
 </body>
+</html>
 </html>
