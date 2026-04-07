@@ -549,7 +549,7 @@ function getVal(id) {
   return el.value;
 }
 
-async function submitActivity() {
+function submitActivity() {
   const errEl = document.getElementById('error-msg');
   errEl.style.display = 'none';
 
@@ -605,36 +605,34 @@ async function submitActivity() {
 
   const payload = { ...base, ...extra, tab: activityType };
 
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Logging...';
+  // Save persistent fields
+  localStorage.setItem('hub_globals', JSON.stringify({ staffName, shift }));
 
-  try {
-    await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload),
-      redirect: 'follow',
-    });
+  // Show success immediately — don't wait for network
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
 
-    // Save persistent fields
-    localStorage.setItem('hub_globals', JSON.stringify({ staffName, shift }));
+  // Reset form immediately
+  resetActivityFields();
 
-    // Show toast
-    const t = document.getElementById('toast');
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2500);
-
-    // Reset activity fields only
-    resetActivityFields();
-
-  } catch (err) {
-    errEl.textContent = 'Network error. Please try again.';
-    errEl.style.display = 'block';
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'Log Activity';
+  // Send to Google Sheets in background — no await
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload),
+    redirect: 'follow',
+  }).catch(() => {
+    // Silently retry once if it fails
+    setTimeout(() => {
+      fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(payload),
+        redirect: 'follow',
+      });
+    }, 5000);
+  });
 }
 
 function resetActivityFields() {
