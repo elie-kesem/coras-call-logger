@@ -57,6 +57,7 @@ const agents = new Map();        // extensionId -> ws
 const pendingForms = new Map();
 const callStartTimes = new Map(); // sessionId -> start timestamp
 const processedSessions = new Set(); // sessionIds already triggered popup
+const recentActivity = [];       // rolling buffer of last 100 logged calls
 
 // ── WebSocket ────────────────────────────────────────────────────────────────
 wss.on('connection', (ws) => {
@@ -69,6 +70,9 @@ wss.on('connection', (ws) => {
       agents.set(agentExtId, ws);
       console.log(`Agent registered: ${msg.agentName} (ext ${agentExtId})`);
       ws.send(JSON.stringify({ type: 'registered', extensionId: agentExtId }));
+      // Send recent activity to newly connected client
+      if (recentActivity.length > 0)
+        ws.send(JSON.stringify({ type: 'activity_history', activities: recentActivity }));
     }
   });
   ws.on('close', () => {
@@ -259,6 +263,16 @@ app.post('/api/submit', async (req, res) => {
     console.log('Apps Script response body:', text);
 
     pendingForms.delete(formId);
+
+    // Add to rolling activity feed and broadcast to all connected clients
+    const activity = { ...payload, id: uuidv4() };
+    recentActivity.unshift(activity);
+    if (recentActivity.length > 100) recentActivity.pop();
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN)
+        client.send(JSON.stringify({ type: 'call_logged', activity }));
+    });
+
     res.json({ success: true });
   } catch (err) {
     console.error('Sheet error:', err.message);
