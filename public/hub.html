@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
+<meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>CORAS Hub Activity Log</title>
+<title>CORAS Call Logger</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -13,641 +13,568 @@
     --text-muted: #7d8590; --text-dim: #4d5566; --radius: 10px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
 
   /* ── Top Nav ── */
-  .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
   .nav-logo { display: flex; align-items: center; gap: 8px; }
-  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
-  .nav-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .nav-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
   .nav-toggle { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-  .nav-toggle a { padding: 6px 16px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-decoration: none; transition: all 0.15s; }
+  .nav-toggle a { padding: 5px 14px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-decoration: none; transition: all 0.15s; }
   .nav-toggle a.active { background: var(--accent); color: #000; }
   .nav-toggle a:hover:not(.active) { color: var(--text); }
 
-  /* ── Main ── */
-  .main { max-width: 640px; margin: 0 auto; padding: 32px 24px; }
+  /* ── Layout ── */
+  .app-layout { display: flex; flex: 1; min-height: calc(100vh - 45px); }
 
-  /* ── Card ── */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; gap: 18px; }
-  .card-title { font-size: 15px; font-weight: 600; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  /* ── Phone Panel ── */
+  .phone-panel { width: 300px; min-width: 300px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  .phone-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+  .phone-header-text { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  #rc-widget-container { flex: 1; overflow: hidden; position: relative; min-height: 100vh; }
 
-  /* ── Fields ── */
-  .field { display: flex; flex-direction: column; gap: 6px; }
+  /* ── Logger Panel ── */
+  .logger-panel { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 28px 24px; overflow-y: auto; max-width: 100%; }
+  .logger-inner { width: 100%; max-width: 580px; }
+
+  /* ── Agent Setup ── */
+  #agent-setup { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; display: flex; flex-direction: column; gap: 18px; margin: 40px auto; max-width: 380px; }
+  #agent-setup h2 { font-size: 17px; font-weight: 600; }
+  #agent-setup p { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Header bar inside logger ── */
+  .logger-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .logger-title { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .agent-badge { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); background: var(--surface2); border: 1px solid var(--border); padding: 3px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px; }
+  .agent-badge button { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 10px; padding: 0; }
+  .agent-badge button:hover { color: var(--danger); }
+
+  /* ── Waiting ── */
+  #waiting { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 60px 0; color: var(--text-dim); }
+  .waiting-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  #waiting p { font-size: 13px; }
+
+  /* ── Popup ── */
+  #popup { display: none; width: 100%; animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .call-banner { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--accent-dim); }
+  .call-info { display: flex; flex-direction: column; gap: 3px; }
+  .call-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+  .caller-name { font-size: 18px; font-weight: 600; }
+  .caller-phone { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-muted); }
+  .call-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+  .meta-pill { font-size: 10px; font-weight: 500; padding: 2px 9px; border-radius: 20px; font-family: 'DM Mono', monospace; }
+  .pill-inbound { background: rgba(14,165,233,0.15); color: var(--accent2); border: 1px solid rgba(14,165,233,0.3); }
+  .pill-outbound { background: rgba(245,158,11,0.12); color: var(--warn); border: 1px solid rgba(245,158,11,0.3); }
+  .duration { font-size: 12px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+  .form-body { background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+  .steps { display: flex; align-items: center; }
+  .step { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); font-weight: 500; }
+  .step.active { color: var(--text); }
+  .step.done { color: var(--accent); }
+  .step-num { width: 20px; height: 20px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 10px; font-family: 'DM Mono', monospace; }
+  .step.active .step-num { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .step.done .step-num { background: var(--accent); border-color: var(--accent); color: #000; }
+  .step-line { flex: 1; height: 1px; background: var(--border); margin: 0 6px; }
+  .field { display: flex; flex-direction: column; gap: 7px; }
   .field label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
   .field label span.req { color: var(--accent); margin-left: 2px; }
-  select, input[type="text"], input[type="number"], input[type="date"], textarea {
-    background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px;
-    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
-    padding: 9px 12px; outline: none; width: 100%; transition: border-color 0.15s;
-  }
-  select { cursor: pointer; }
-  select:focus, input:focus, textarea:focus { border-color: var(--accent); }
-  select option { background: var(--surface2); }
-  textarea { resize: vertical; min-height: 70px; }
+  .client-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .toggle-btn { padding: 14px; border-radius: var(--radius); border: 1.5px solid var(--border); background: var(--surface2); color: var(--text-muted); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: all 0.15s; }
+  .toggle-btn:hover { border-color: var(--text-dim); color: var(--text); }
+  .toggle-btn.selected { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+  .toggle-btn .icon { font-size: 20px; }
+  .toggle-btn .sub { font-size: 10px; opacity: 0.7; }
+  .option-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .option-btn { padding: 9px 12px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface2); color: var(--text-muted); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; text-align: left; transition: all 0.15s; line-height: 1.3; }
+  .option-btn:hover { border-color: var(--text-dim); color: var(--text); }
+  .option-btn.selected { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+  .outcome-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .outcome-btn { padding: 9px 12px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface2); color: var(--text-muted); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; text-align: left; transition: all 0.15s; }
+  .outcome-btn:hover { border-color: var(--text-dim); color: var(--text); }
+  .outcome-btn.selected { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+  textarea { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 10px; resize: vertical; min-height: 70px; outline: none; transition: border-color 0.15s; width: 100%; }
+  textarea:focus { border-color: var(--accent); }
   textarea::placeholder { color: var(--text-dim); }
-
-  /* ── Duration ticker ── */
-  .ticker { display: flex; align-items: center; gap: 10px; }
-  .ticker-val { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 600; min-width: 60px; text-align: center; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; }
-  .ticker-btn { width: 36px; height: 36px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface2); color: var(--text); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-  .ticker-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .ticker-label { font-size: 12px; color: var(--text-muted); }
-
-  /* ── Submit ── */
-  .submit-btn { width: 100%; padding: 13px; border-radius: var(--radius); border: none; background: var(--accent); color: #000; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-top: 4px; }
-  .submit-btn:hover { filter: brightness(1.1); }
-  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  /* ── Success toast ── */
-  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--accent); color: #000; padding: 12px 28px; border-radius: 40px; font-weight: 600; font-size: 14px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); z-index: 999; }
-  #toast.show { transform: translateX(-50%) translateY(0); }
-
+  input[type="date"] { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; padding: 9px 10px; outline: none; width: 100%; transition: border-color 0.15s; }
+  input:focus { border-color: var(--accent); }
+  select { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 10px 12px; outline: none; width: 100%; transition: border-color 0.15s; cursor: pointer; }
+  select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  .submit-btn { width: 100%; padding: 13px; border-radius: var(--radius); border: none; background: var(--accent); color: #000; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .submit-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
   .error-msg { font-size: 11px; color: var(--danger); display: none; padding: 7px 10px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--accent); color: #000; padding: 10px 22px; border-radius: 40px; font-weight: 600; font-size: 13px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); z-index: 999; white-space: nowrap; }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  .divider { height: 1px; background: var(--border); }
   .hidden { display: none !important; }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .back-btn { background: none; border: none; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 0; }
+  .back-btn:hover { color: var(--text); }
 </style>
 </head>
 <body>
-
 <div class="top-nav">
   <div class="nav-logo">
     <div class="logo-dot"></div>
     <span class="nav-title">CORAS Wellness</span>
   </div>
   <div class="nav-toggle">
-    <a href="/index.html">📞 Call Logger</a>
-    <a href="/hub.html" class="active">📋 Hub Activity</a>
+    <a href="/index.html" class="active">📞 Call Logger</a>
+    <a href="/hub.html">📋 Hub Activity</a>
   </div>
 </div>
+<div class="app-layout">
 
-<div class="main">
-  <div class="card">
-    <div class="card-title">Hub Activity Log</div>
-
-    <!-- Global Fields -->
-    <div class="field">
-      <label>Staff Name <span class="req">*</span></label>
-      <select id="staffName">
-        <option value="">-- Select your name --</option>
-        <option>Bennett Johnson</option>
-        <option>Korayma Rojas</option>
-        <option>Deniz Sotelo Rodriguez</option>
-        <option>Sally Rodriguez Sotelo</option>
-        <option>Geraldine McGinnis</option>
-        <option>Jocelyn Rodriguez</option>
-        <option>Magali Lopez</option>
-        <option>Nestor Lopez</option>
-        <option>Larica Curry</option>
-        <option>Kim Enger</option>
-      </select>
+  <!-- LEFT: Embedded Phone -->
+  <div class="phone-panel">
+    <div class="phone-header">
+      <div class="logo-dot"></div>
+      <span class="phone-header-text">CORAS Phone</span>
     </div>
+    <div id="rc-widget-container"></div>
+  </div>
 
-    <div class="grid-2">
-      <div class="field">
-        <label>Date <span class="req">*</span></label>
-        <input type="date" id="entryDate"/>
-      </div>
-      <div class="field">
-        <label>Shift <span class="req">*</span></label>
-        <select id="shift">
-          <option value="">-- Select shift --</option>
-          <option>3am-11am</option>
-          <option>5am-1pm</option>
-          <option>7am-3pm</option>
-          <option>8am-4pm</option>
-          <option>9am-5pm</option>
-          <option>11am-7pm</option>
-          <option>12pm-8pm</option>
-          <option>5am-5pm</option>
-          <option>5pm-12am</option>
-          <option>7pm-3am</option>
-          <option>8pm-3am</option>
-          <option>8pm-5am</option>
-        </select>
-      </div>
-    </div>
+  <!-- RIGHT: Logger -->
+  <div class="logger-panel">
+    <div class="logger-inner">
 
-    <div class="field">
-      <label>Activity Type <span class="req">*</span></label>
-      <select id="activityType" onchange="showActivityFields()">
-        <option value="">-- Select activity --</option>
-<option value="Medical Records">Medical Records</option>
-        <option value="Open Beds">Open Beds</option>
-        <option value="Fax">Fax</option>
-        <option value="Dose Verifications">Dose Verifications & Pharmacy Requests</option>
-        <option value="Disability Forms">Disability Forms</option>
-        <option value="Email Referrals">Email Referrals</option>
-        <option value="Billing Audit">Billing Audit</option>
-        <option value="Scheduling">Scheduling</option>
-        <option value="Other Tasks">Other Tasks</option>
-      </select>
-    </div>
-
-    <!-- Medical Records -->
-    <div id="fields-Medical Records" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="grid-2">
+      <!-- Agent Setup -->
+      <div id="agent-setup">
+        <h2>Select Your Name</h2>
+        <p>Select your name once. The logging form will pop up automatically after each call ends.</p>
         <div class="field">
-          <label>System <span class="req">*</span></label>
-          <select id="mr-system">
-            <option value="">-- Select --</option>
-            <option>Carelogic</option>
-            <option>KIPU</option>
+          <label>Your Name <span class="req">*</span></label>
+          <select id="agent-select">
+            <option value="">-- Select your name --</option>
           </select>
         </div>
-        <div class="field">
-          <label>Requestor Type <span class="req">*</span></label>
-          <select id="mr-requestorType">
-            <option value="">-- Select --</option>
-            <option>Insurance Carrier</option>
-            <option>Client</option>
-            <option>Provider</option>
-            <option>Internal</option>
-          </select>
-        </div>
+        <div class="error-msg" id="login-error">Please select your name.</div>
+        <button class="submit-btn" onclick="connectAgent()">Connect</button>
       </div>
-      <div class="grid-2">
-        <div class="field">
-          <label>Number of Records <span class="req">*</span></label>
-          <input type="number" id="mr-numRecords" min="1" value="1"/>
-        </div>
-        <div class="field">
-          <label>Status <span class="req">*</span></label>
-          <select id="mr-status">
-            <option value="">-- Select --</option>
-            <option>Pulled</option>
-            <option>Sent</option>
-            <option>Pending</option>
-          </select>
-        </div>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="mr-notes" placeholder="Optional notes..."></textarea>
-      </div>
-    </div>
 
-    <!-- Open Beds -->
-    <div id="fields-Open Beds" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="grid-2">
-        <div class="field">
-          <label>Action <span class="req">*</span></label>
-          <select id="ob-action">
-            <option value="">-- Select --</option>
-            <option>Monitored</option>
-            <option>Responded</option>
-            <option>Escalated</option>
-          </select>
+      <!-- Logger header (shown after login) -->
+      <div class="logger-header" id="logger-header" style="display:none;">
+        <div class="logger-title">
+          <div class="logo-dot"></div>
+          CORAS Call Logger
         </div>
-        <div class="field">
-          <label>Outcome <span class="req">*</span></label>
-          <select id="ob-outcome">
-            <option value="">-- Select --</option>
-            <option>Placed</option>
-            <option>Pending</option>
-            <option>No Availability</option>
-            <option>Referred Elsewhere</option>
-          </select>
+        <div class="agent-badge">
+          <span id="agent-name-display"></span>
+          <button onclick="logout()" title="Sign out">✕</button>
         </div>
       </div>
-      <div class="field">
-        <label>Referral Source <span class="req">*</span></label>
-        <input type="text" id="ob-referralSource" placeholder="e.g. Hospital, Agency name"/>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="ob-notes" placeholder="Optional notes..."></textarea>
-      </div>
-    </div>
 
-    <!-- Fax -->
-    <div id="fields-Fax" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="grid-2">
-        <div class="field">
-          <label>Document Type <span class="req">*</span></label>
-          <input type="text" id="fax-docType" placeholder="e.g. Referral, Auth, Records"/>
-        </div>
-        <div class="field">
-          <label>Sent To <span class="req">*</span></label>
-          <input type="text" id="fax-sentTo" placeholder="Recipient name or fax number"/>
-        </div>
+      <!-- Waiting -->
+      <div id="waiting">
+        <div class="waiting-icon">📞</div>
+        <p>Waiting for next call to end...</p>
       </div>
-      <div class="grid-2">
-        <div class="field">
-          <label>Number of Pages <span class="req">*</span></label>
-          <input type="number" id="fax-pages" min="1" placeholder="0"/>
-        </div>
-        <div class="field">
-          <label>Confirmed Received <span class="req">*</span></label>
-          <select id="fax-confirmed">
-            <option value="">-- Select --</option>
-            <option>Yes</option>
-            <option>No</option>
-            <option>Pending</option>
-          </select>
-        </div>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="fax-notes" placeholder="Optional notes..."></textarea>
-      </div>
-    </div>
 
-    <!-- Dose Verifications -->
-    <div id="fields-Dose Verifications" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="grid-2">
-        <div class="field">
-          <label>Type <span class="req">*</span></label>
-          <select id="dv-type">
-            <option value="">-- Select --</option>
-            <option>Dose Verification</option>
-            <option>Pharmacy Request</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Status <span class="req">*</span></label>
-          <select id="dv-status">
-            <option value="">-- Select --</option>
-            <option>Verified</option>
-            <option>Pending</option>
-            <option>Unable to Reach</option>
-            <option>Completed</option>
-          </select>
-        </div>
-      </div>
-      <div class="grid-2">
-        <div class="field">
-          <label>Source / Contact <span class="req">*</span></label>
-          <input type="text" id="dv-source" placeholder="Hospital or pharmacy name"/>
-        </div>
-        <div class="field">
-          <label>Client ID</label>
-          <input type="text" id="dv-clientId" placeholder="Optional"/>
-        </div>
-      </div>
-      <div class="field">
-        <label>Action Taken <span class="req">*</span></label>
-        <input type="text" id="dv-actionTaken" placeholder="Describe what was done"/>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="dv-notes" placeholder="Optional notes..."></textarea>
-      </div>
-    </div>
-
-    <!-- Disability Forms -->
-    <div id="fields-Disability Forms" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="grid-2">
-        <div class="field">
-          <label>Form Type <span class="req">*</span></label>
-          <input type="text" id="df-formType" placeholder="e.g. SSI, FMLA, Short-term disability"/>
-        </div>
-        <div class="field">
-          <label>Submitted To <span class="req">*</span></label>
-          <input type="text" id="df-submittedTo" placeholder="Agency or contact"/>
-        </div>
-      </div>
-      <div class="field">
-        <label>Status <span class="req">*</span></label>
-        <select id="df-status">
-          <option value="">-- Select --</option>
-          <option>Submitted</option>
-          <option>Pending</option>
-          <option>Awaiting Signature</option>
-          <option>Completed</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="df-notes" placeholder="Optional notes..."></textarea>
-      </div>
-    </div>
-
-    <!-- Email Referrals -->
-    <div id="fields-Email Referrals" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="grid-2">
-        <div class="field">
-          <label>Referral Source <span class="req">*</span></label>
-          <input type="text" id="er-source" placeholder="Agency, provider, or sender"/>
-        </div>
-        <div class="field">
-          <label>Action Taken <span class="req">*</span></label>
-          <select id="er-action">
-            <option value="">-- Select --</option>
-            <option>Responded</option>
-            <option>Forwarded</option>
-            <option>Scheduled</option>
-            <option>Pending</option>
-          </select>
-        </div>
-      </div>
-      <div class="field">
-        <label>Follow-Up Required <span class="req">*</span></label>
-        <select id="er-followUp">
-          <option value="">-- Select --</option>
-          <option>Yes</option>
-          <option>No</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="er-notes" placeholder="Optional notes..."></textarea>
-      </div>
-    </div>
-
-    <!-- Billing Audit -->
-    <div id="fields-Billing Audit" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="grid-2">
-        <div class="field">
-          <label>Logs Reviewed <span class="req">*</span></label>
-          <input type="number" id="ba-logsReviewed" min="0" placeholder="0"/>
-        </div>
-        <div class="field">
-          <label>Errors Found <span class="req">*</span></label>
-          <input type="number" id="ba-errorsFound" min="0" placeholder="0"/>
-        </div>
-      </div>
-      <div class="field">
-        <label>Errors Corrected <span class="req">*</span></label>
-        <input type="number" id="ba-errorsCorrected" min="0" placeholder="0"/>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="ba-notes" placeholder="Optional notes..."></textarea>
-      </div>
-    </div>
-
-    <!-- Scheduling -->
-    <div id="fields-Scheduling" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="grid-2">
-        <div class="field">
-          <label>Appointment Type <span class="req">*</span></label>
-          <select id="sc-apptType">
-            <option value="">-- Select --</option>
-            <option>New Intake</option>
-            <option>NP Appointment</option>
-            <option>Follow-Up</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Number Scheduled <span class="req">*</span></label>
-          <input type="number" id="sc-numScheduled" min="0" placeholder="0"/>
-        </div>
-      </div>
-      <div class="field">
-        <label>Reminder Calls Made <span class="req">*</span></label>
-        <input type="number" id="sc-reminderCalls" min="0" placeholder="0"/>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="sc-notes" placeholder="Optional notes..."></textarea>
-      </div>
-    </div>
-
-    <!-- Other Tasks -->
-    <div id="fields-Other Tasks" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="field">
-        <label>Task Description <span class="req">*</span></label>
-        <input type="text" id="ot-description" placeholder="Describe the task"/>
-      </div>
-      <div class="grid-2">
-        <div class="field">
-          <label>Time Spent (minutes) <span class="req">*</span></label>
-          <div class="ticker">
-            <button class="ticker-btn" onclick="adjustTicker('ot-duration', -5)">−</button>
-            <div class="ticker-val" id="ot-duration">0</div>
-            <button class="ticker-btn" onclick="adjustTicker('ot-duration', 5)">+</button>
-            <span class="ticker-label">min</span>
+      <!-- Call Popup -->
+      <div id="popup">
+        <div class="call-banner">
+          <div class="call-info">
+            <span class="call-label">Call Ended</span>
+            <span class="caller-name" id="b-name">Unknown Caller</span>
+            <span class="caller-phone" id="b-phone"></span>
+          </div>
+          <div class="call-meta">
+            <span class="meta-pill" id="b-direction">Inbound</span>
+            <span class="duration" id="b-duration">0:00</span>
           </div>
         </div>
-        <div class="field">
-          <label>Assigned By</label>
-          <input type="text" id="ot-assignedBy" placeholder="Optional"/>
+        <div class="form-body">
+          <div class="steps">
+            <div class="step active" id="step1-ind"><div class="step-num">1</div><span>Client Type</span></div>
+            <div class="step-line"></div>
+            <div class="step" id="step2-ind"><div class="step-num">2</div><span>Service</span></div>
+            <div class="step-line"></div>
+            <div class="step" id="step3-ind"><div class="step-num">3</div><span>Outcome</span></div>
+            <div class="step-line"></div>
+            <div class="step" id="step4-ind"><div class="step-num">4</div><span>Notes</span></div>
+          </div>
+          <div class="divider"></div>
+          <div id="step1">
+            <div class="field">
+              <label>Client Type <span class="req">*</span></label>
+              <div class="client-toggle" style="grid-template-columns: 1fr 1fr 1fr;">
+                <button class="toggle-btn" id="btn-new" onclick="selectClientType('new')"><span class="icon">🆕</span>New Client<span class="sub">First time inquiry</span></button>
+                <button class="toggle-btn" id="btn-existing" onclick="selectClientType('existing')"><span class="icon">🔁</span>Existing Client<span class="sub">Already in treatment</span></button>
+                <button class="toggle-btn" id="btn-internal" onclick="selectClientType('internal')"><span class="icon">🏢</span>Internal Call<span class="sub">Staff or admin</span></button>
+              </div>
+            </div>
+          </div>
+          <div id="step2" class="hidden">
+            <button class="back-btn" onclick="goToStep(1)" style="margin-bottom:10px;">← Back</button>
+            <div class="field">
+              <label id="step2-label">Service Inquired About <span class="req">*</span></label>
+              <div class="option-grid" id="option-grid"></div>
+            </div>
+          </div>
+          <div id="step3" class="hidden">
+            <button class="back-btn" onclick="goToStep(2)" style="margin-bottom:10px;">← Back</button>
+            <div class="field">
+              <label>Call Outcome <span class="req">*</span></label>
+              <div class="outcome-grid" id="outcome-grid"></div>
+            </div>
+          </div>
+          <div id="step4" class="hidden">
+            <button class="back-btn" onclick="goToStep(3)" style="margin-bottom:10px;">← Back</button>
+            <div class="field">
+              <label>Notes</label>
+              <textarea id="notes" placeholder="Any additional context..."></textarea>
+            </div>
+            <div class="field" id="followup-field" style="margin-top:10px; display:none;">
+              <label>Follow Up Date</label>
+              <input type="date" id="followup-date" />
+            </div>
+            <div class="error-msg" id="error-msg">Please complete all required fields.</div>
+            <button class="submit-btn" style="margin-top:14px;" id="submit-btn" onclick="submitForm()">Save Call Log</button>
+          </div>
         </div>
       </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="ot-notes" placeholder="Optional notes..."></textarea>
-      </div>
-    </div>
 
-    <div class="error-msg" id="error-msg">Please fill in all required fields.</div>
-    <button class="submit-btn" id="submit-btn" onclick="submitActivity()">Log Activity</button>
+    </div>
   </div>
 </div>
 
-<div id="toast">✓ Entry logged.</div>
+<div id="toast">✓ Call logged successfully</div>
 
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzZ9hbLj2ecF9PJgzBpfh3UBTxzGL-WZSawktSdtFeICofuPvLZumeGFGEavH-mQ8SH/exec';
+const RC_CLIENT_ID = '4wQyQGPz0HYcwQ1JGnPy45';
+const RC_SERVER = 'https://platform.ringcentral.com';
 
-const ACTIVITY_FIELDS = {
-'Medical Records': ['mr-system', 'mr-requestorType', 'mr-numRecords', 'mr-status'],
-  'Open Beds': ['ob-action', 'ob-outcome', 'ob-referralSource'],
-  'Fax': ['fax-docType', 'fax-sentTo'],
-  'Dose Verifications': ['dv-type', 'dv-status', 'dv-source', 'dv-actionTaken'],
-  'Disability Forms': ['df-formType', 'df-submittedTo', 'df-status'],
-  'Email Referrals': ['er-source', 'er-action', 'er-followUp'],
-  'Billing Audit': ['ba-logsReviewed', 'ba-errorsFound', 'ba-errorsCorrected'],
-  'Scheduling': ['sc-apptType', 'sc-numScheduled', 'sc-reminderCalls'],
-  'Other Tasks': ['ot-description'],
-};
+const AGENTS = [
+  { name: 'Amy Green', extensionId: '63747196007' },
+  { name: 'Anabell Rosario', extensionId: '62824418006' },
+  { name: 'Becca Lewis', extensionId: '63866477007' },
+  { name: 'Bennett Johnson', extensionId: '62842636006' },
+  { name: 'Catherine Asem', extensionId: '63794397007' },
+  { name: 'Chelsea Hickey', extensionId: '63747245007' },
+  { name: 'Christina Spanos', extensionId: '62831034006' },
+  { name: 'Claudia Corzo', extensionId: '63747246007' },
+  { name: 'Cynthia Prange', extensionId: '63747234007' },
+  { name: 'Danshanara Turlington', extensionId: '63747233007' },
+  { name: 'Davida Mccray', extensionId: '63747222007' },
+  { name: 'Deniz Sotelo Rodriguez', extensionId: '62842639006' },
+  { name: 'Dennis Thompson', extensionId: '63870421007' },
+  { name: 'Elie Orgel', extensionId: '62842473006' },
+  { name: 'Geraldine Mcginnis', extensionId: '62842635006' },
+  { name: 'Humberto Hernandez', extensionId: '63747197007' },
+  { name: 'Ivoria Harris', extensionId: '62837438006' },
+  { name: 'Jami Knowland', extensionId: '63857220007' },
+  { name: 'Jamie Paolini', extensionId: '63877665007' },
+  { name: 'Jay Cantor', extensionId: '63747205007' },
+  { name: 'Jenn Begley', extensionId: '62843219006' },
+  { name: 'Jennifer Screen', extensionId: '63747244007' },
+  { name: 'Jessica Butler', extensionId: '63866476007' },
+  { name: 'Jocelyn Rodriguez', extensionId: '62842642006' },
+  { name: 'Kelly Emmell', extensionId: '63747195007' },
+  { name: 'Kim Enger', extensionId: '63747227007' },
+  { name: 'Korayma Rojas', extensionId: '62842640006' },
+  { name: 'Kylee Howell', extensionId: '62842546006' },
+  { name: 'Kyra Berrios', extensionId: '63747210007' },
+  { name: 'Larica Curry', extensionId: '62842643006' },
+  { name: 'Latasha Spruill', extensionId: '63747240007' },
+  { name: 'Latoya Smith', extensionId: '63908826007' },
+  { name: 'Latoya Waples', extensionId: '63747239007' },
+  { name: 'Lisa Rodriguez', extensionId: '63870423007' },
+  { name: 'Magali Lopez', extensionId: '62842637006' },
+  { name: 'Marco Hernandez', extensionId: '63747215007' },
+  { name: 'Megan Cooper', extensionId: '63747204007' },
+  { name: 'Melissa Wiley', extensionId: '63747203007' },
+  { name: 'Michael Trzeciakiewicz', extensionId: '63747238007' },
+  { name: 'Naomi Middleton', extensionId: '63747209007' },
+  { name: 'Nestor Lopez', extensionId: '62842638006' },
+  { name: 'Nicole Worseck-Dixon', extensionId: '63851655007' },
+  { name: 'Nya Stanley', extensionId: '63747208007' },
+  { name: 'Okechukwu Obua', extensionId: '63747202007' },
+  { name: 'Patricia Ayers', extensionId: '63747232007' },
+  { name: 'Rache Fitzgerald', extensionId: '62831037006' },
+  { name: 'Ricky Thomas', extensionId: '63747220007' },
+  { name: 'Robert Isakoff', extensionId: '63747221007' },
+  { name: 'Robert Miller', extensionId: '63747223007' },
+  { name: 'Ron Romanelli', extensionId: '63747231007' },
+  { name: 'Sally Rodriguez Sotelo', extensionId: '62842641006' },
+  { name: 'Shannon Brady', extensionId: '62837202006' },
+  { name: 'Shelby Stevens', extensionId: '63747237007' },
+  { name: 'Sixto Rey Troche', extensionId: '63747225007' },
+  { name: 'Stephanie Falkner', extensionId: '62844939006' },
+  { name: 'Susanna Larvie', extensionId: '63747243007' },
+  { name: 'Sylvia Simon', extensionId: '62791907006' },
+  { name: 'Syreeta Monte', extensionId: '63804918007' },
+  { name: 'Uche Obua', extensionId: '63747201007' },
+  { name: 'Victoria Distler', extensionId: '63747207007' },
+];
 
-// Set today's date
-document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+const OUTCOMES = ['Appointment Scheduled','Left Voicemail','Not Interested','Follow Up Required','Transferred','Wrong Number','Intake Started','Insurance Verified','Referred to Different Location','Called Back Later','Disconnected / Bad Number','No Answer','Patient Already in Treatment','Not Eligible / Doesn\'t Meet Criteria','Callback Requested','Left Message with Third Party','Needs More Information'];
+const NEW_CLIENT_SERVICES = ['MAT / Methadone Treatment','IOP (Intensive Outpatient)','PHP (Partial Hospitalization)','Residential Treatment','DUI Services','General Inquiry','Insurance Verification','Reminder Call'];
+const EXISTING_CLIENT_TYPES = ['Appointment Reschedule / Cancel','Prescription Refill','Billing Question','Progress Update','Crisis Support','Lab Results','Referral to Another Location','General Question'];
+const FOLLOWUP_OUTCOMES = ['Follow Up Required','Callback Requested','Appointment Scheduled'];
 
-// Auto-fill staff name from call logger session
-const callLoggerName = localStorage.getItem('coras_agent_name');
-const callLoggerExtId = localStorage.getItem('coras_extension_id');
+let agentName = localStorage.getItem('coras_agent_name');
+let extensionId = localStorage.getItem('coras_extension_id');
+let ws = null;
+let currentCall = null;
+let selectedClientType = null;
+let selectedService = null;
+let selectedOutcome = null;
+let callStartTime = null;
+let activeCallData = {};
 
-// Map extension IDs to hub staff names
-const EXT_TO_HUB_NAME = {
-  '62842636006': 'Bennett Johnson',
-  '62842640006': 'Korayma Rojas',
-  '62842639006': 'Deniz Sotelo Rodriguez',
-  '62842641006': 'Sally Rodriguez Sotelo',
-  '62842635006': 'Geraldine McGinnis',
-  '62842642006': 'Jocelyn Rodriguez',
-  '62842637006': 'Magali Lopez',
-  '62842638006': 'Nestor Lopez',
-  '62842643006': 'Larica Curry',
-  '63747227007': 'Kim Enger',
-};
+// ── Populate dropdown ────────────────────────────────────────────────────────
+const sel = document.getElementById('agent-select');
+AGENTS.forEach(a => {
+  const opt = document.createElement('option');
+  opt.value = a.extensionId;
+  opt.textContent = a.name;
+  sel.appendChild(opt);
+});
 
-// Try to pre-fill from extension ID first, then fall back to saved name
-const hubName = EXT_TO_HUB_NAME[callLoggerExtId] || '';
-const savedName = JSON.parse(localStorage.getItem('hub_globals') || '{}').staffName || '';
-const nameToUse = hubName || savedName;
-if (nameToUse) document.getElementById('staffName').value = nameToUse;
-
-// Auto-detect shift from current time
-function detectShift() {
-  const now = new Date();
-  const h = now.getHours();
-  const m = now.getMinutes();
-  const mins = h * 60 + m;
-
-  // Each shift: [start_mins, end_mins, label]
-  const shifts = [
-    [3*60,    11*60,   '3am-11am'],
-    [5*60,    13*60,   '5am-1pm'],
-    [7*60,    15*60,   '7am-3pm'],
-    [8*60,    16*60,   '8am-4pm'],
-    [9*60,    17*60,   '9am-5pm'],
-    [11*60,   19*60,   '11am-7pm'],
-    [12*60,   20*60,   '12pm-8pm'],
-    [5*60,    17*60,   '5am-5pm'],
-    [17*60,   24*60,   '5pm-12am'],
-    [19*60,   27*60,   '7pm-3am'],
-    [20*60,   27*60,   '8pm-3am'],
-    [20*60,   29*60,   '8pm-5am'],
-  ];
-
-  // Find shifts currently active (started and not yet ended)
-  const active = shifts.filter(s => mins >= s[0] && mins < s[1]);
-  if (active.length > 0) {
-    // Pick the one that started most recently
-    const best = active.reduce((a, b) => b[0] > a[0] ? b : a);
-    return best[2];
-  }
-
-  // If no active shift, pick the one starting soonest
-  const upcoming = shifts.filter(s => s[0] > mins);
-  if (upcoming.length > 0) {
-    return upcoming.sort((a,b) => a[0]-b[0])[0][2];
-  }
-
-  return '';
+// ── Load RC Embeddable as iframe ─────────────────────────────────────────────
+function loadRCWidget() {
+  const container = document.getElementById('rc-widget-container');
+  const iframe = document.createElement('iframe');
+  const rcURL = 'https://apps.ringcentral.com/integration/ringcentral-embeddable/latest/app.html' +
+    '?clientId=' + RC_CLIENT_ID +
+    '&appServer=' + encodeURIComponent(RC_SERVER) +
+    '&redirectUri=' + encodeURIComponent('https://ringcentral.github.io/ringcentral-embeddable/redirect.html');
+  iframe.src = rcURL;
+  iframe.style.cssText = 'width:100%;height:calc(100vh - 47px);border:none;min-height:600px;';
+  iframe.allow = 'microphone; camera; autoplay';
+  container.appendChild(iframe);
 }
 
-const detectedShift = detectShift();
-if (detectedShift) document.getElementById('shift').value = detectedShift;
+// ── Listen for RC call events ────────────────────────────────────────────────
+window.addEventListener('message', (e) => {
+  const data = e.data;
+  if (!data || !data.type) return;
 
-function showActivityFields() {
-  const type = document.getElementById('activityType').value;
-  // Hide all
-  document.querySelectorAll('[id^="fields-"]').forEach(el => el.classList.add('hidden'));
-  // Show selected
-  if (type) {
-    const el = document.getElementById('fields-' + type);
-    if (el) el.classList.remove('hidden');
-  }
-}
-
-function adjustTicker(id, delta) {
-  const el = document.getElementById(id);
-  const current = parseInt(el.textContent) || 0;
-  el.textContent = Math.max(0, current + delta);
-}
-
-function getVal(id) {
-  const el = document.getElementById(id);
-  if (!el) return '';
-  if (el.classList.contains('ticker-val')) return el.textContent;
-  return el.value;
-}
-
-function submitActivity() {
-  const errEl = document.getElementById('error-msg');
-  errEl.style.display = 'none';
-
-  const staffName = getVal('staffName');
-  const entryDate = getVal('entryDate');
-  const shift = getVal('shift');
-  const activityType = getVal('activityType');
-
-  if (!staffName || !entryDate || !shift || !activityType) {
-    errEl.textContent = 'Please fill in all required fields.';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  // Validate activity-specific required fields
-  const required = ACTIVITY_FIELDS[activityType] || [];
-  for (const id of required) {
-    const val = getVal(id);
-    if (!val || val === '0' && id.includes('duration')) continue;
-    if (!val) {
-      errEl.textContent = 'Please fill in all required fields.';
-      errEl.style.display = 'block';
-      return;
+  // Track active call
+  if (data.type === 'rc-active-call-notify') {
+    const call = data.call || {};
+    if (call.telephonyStatus && call.telephonyStatus !== 'NoCall') {
+      activeCallData = {
+        direction: call.direction === 'Outbound' ? 'Outbound' : 'Inbound',
+        sessionId: call.sessionId || '',
+        from: call.from?.phoneNumber || call.fromNumber || '',
+        fromName: call.from?.name || call.fromName || '',
+        to: call.to?.phoneNumber || call.toNumber || '',
+        toName: call.to?.name || call.toName || '',
+      };
+      if (!callStartTime) callStartTime = Date.now();
     }
   }
 
-  // Build payload based on activity type
-  const base = {
-    timestamp: new Date().toISOString(),
-    staffName, entryDate, shift, activityType,
-  };
+  // Call ended
+  if (data.type === 'rc-call-end-notify') {
+    const call = data.call || {};
+    const durationSeconds = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
+    callStartTime = null;
 
-  let extra = {};
-  if (activityType === 'Medical Records') {
-    extra = { system: getVal('mr-system'), requestorType: getVal('mr-requestorType'), numRecords: getVal('mr-numRecords'), status: getVal('mr-status'), notes: getVal('mr-notes') };
-  } else if (activityType === 'Open Beds') {
-    extra = { action: getVal('ob-action'), referralSource: getVal('ob-referralSource'), outcome: getVal('ob-outcome'), notes: getVal('ob-notes') };
-  } else if (activityType === 'Fax') {
-    extra = { docType: getVal('fax-docType'), sentTo: getVal('fax-sentTo'), notes: getVal('fax-notes') };
-  } else if (activityType === 'Dose Verifications') {
-    extra = { type: getVal('dv-type'), source: getVal('dv-source'), clientId: getVal('dv-clientId'), actionTaken: getVal('dv-actionTaken'), status: getVal('dv-status'), notes: getVal('dv-notes') };
-  } else if (activityType === 'Disability Forms') {
-    extra = { formType: getVal('df-formType'), submittedTo: getVal('df-submittedTo'), status: getVal('df-status'), notes: getVal('df-notes') };
-  } else if (activityType === 'Email Referrals') {
-    extra = { referralSource: getVal('er-source'), actionTaken: getVal('er-action'), followUpRequired: getVal('er-followUp'), notes: getVal('er-notes') };
-  } else if (activityType === 'Billing Audit') {
-    extra = { logsReviewed: getVal('ba-logsReviewed'), errorsFound: getVal('ba-errorsFound'), errorsCorrected: getVal('ba-errorsCorrected'), notes: getVal('ba-notes') };
-  } else if (activityType === 'Scheduling') {
-    extra = { apptType: getVal('sc-apptType'), numScheduled: getVal('sc-numScheduled'), reminderCalls: getVal('sc-reminderCalls'), notes: getVal('sc-notes') };
-  } else if (activityType === 'Other Tasks') {
-    extra = { description: getVal('ot-description'), timeSpent: getVal('ot-duration') + ' min', assignedBy: getVal('ot-assignedBy'), notes: getVal('ot-notes') };
+    const direction = activeCallData.direction || (call.direction === 'Outbound' ? 'Outbound' : 'Inbound');
+    const isOutbound = direction === 'Outbound';
+
+    const otherPhone = isOutbound
+      ? (activeCallData.to || call.to?.phoneNumber || call.toNumber || 'Unknown')
+      : (activeCallData.from || call.from?.phoneNumber || call.fromNumber || 'Unknown');
+    const otherName = isOutbound
+      ? (activeCallData.toName || call.to?.name || 'Unknown Caller')
+      : (activeCallData.fromName || call.from?.name || 'Unknown Caller');
+
+    const callData = {
+      formId: 'rc-' + Date.now(),
+      agentName: agentName || 'Agent',
+      callerPhone: otherPhone,
+      callerName: otherName,
+      direction,
+      duration: durationSeconds,
+      startTime: new Date(Date.now() - durationSeconds * 1000).toISOString(),
+      sessionId: activeCallData.sessionId || call.sessionId || '',
+    };
+
+    activeCallData = {};
+    if (agentName) showPopup(callData);
   }
+});
 
-  const payload = { ...base, ...extra, tab: activityType };
+// ── Agent setup ──────────────────────────────────────────────────────────────
+function connectAgent() {
+  const select = document.getElementById('agent-select');
+  const errEl = document.getElementById('login-error');
+  if (!select.value) { errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  extensionId = select.value;
+  agentName = AGENTS.find(a => a.extensionId === extensionId)?.name || 'Agent';
+  localStorage.setItem('coras_extension_id', extensionId);
+  localStorage.setItem('coras_agent_name', agentName);
+  // Also save for hub form
+  const hubGlobals = JSON.parse(localStorage.getItem('hub_globals') || '{}');
+  hubGlobals.staffName = agentName;
+  localStorage.setItem('hub_globals', JSON.stringify(hubGlobals));
+  initUI();
+}
 
-  // Save persistent fields
-  localStorage.setItem('hub_globals', JSON.stringify({ staffName, shift }));
+function logout() {
+  localStorage.removeItem('coras_extension_id');
+  localStorage.removeItem('coras_agent_name');
+  extensionId = null; agentName = null;
+  if (ws) ws.close();
+  document.getElementById('agent-setup').style.display = 'flex';
+  document.getElementById('logger-header').style.display = 'none';
+  document.getElementById('waiting').style.display = 'none';
+  document.getElementById('popup').style.display = 'none';
+}
 
-  // Show success immediately — don't wait for network
-  const t = document.getElementById('toast');
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
+function initUI() {
+  document.getElementById('agent-setup').style.display = 'none';
+  document.getElementById('logger-header').style.display = 'flex';
+  document.getElementById('waiting').style.display = 'flex';
+  document.getElementById('popup').style.display = 'none';
+  document.getElementById('agent-name-display').textContent = agentName;
+  connectWS();
+}
 
-  // Reset form immediately
-  resetActivityFields();
+// ── WebSocket (fallback for webhook-based calls) ──────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen = () => ws.send(JSON.stringify({ type: 'register', extensionId, agentName }));
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'call_ended') {
+      // Only show popup if this call belongs to the logged-in agent
+      const callExtId = String(msg.callData?.agentId || '');
+      const myExtId = String(extensionId || '');
+      if (callExtId && myExtId && callExtId !== myExtId) return;
+      showPopup(msg.callData);
+    }
+  };
+  ws.onclose = () => setTimeout(connectWS, 3000);
+}
 
-  // Send to Google Sheets in background — no await
-  fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(payload),
-    redirect: 'follow',
-  }).catch(() => {
-    // Silently retry once if it fails
-    setTimeout(() => {
-      fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(payload),
-        redirect: 'follow',
-      });
-    }, 5000);
+// ── Form ─────────────────────────────────────────────────────────────────────
+function showPopup(callData) {
+  currentCall = callData;
+  selectedClientType = selectedService = selectedOutcome = null;
+  document.getElementById('b-name').textContent = callData.callerName || 'Unknown Caller';
+  document.getElementById('b-phone').textContent = callData.callerPhone || '';
+  document.getElementById('b-duration').textContent = formatDuration(callData.duration);
+  const dirEl = document.getElementById('b-direction');
+  dirEl.textContent = callData.direction || 'Inbound';
+  dirEl.className = 'meta-pill ' + (callData.direction === 'Outbound' ? 'pill-outbound' : 'pill-inbound');
+  document.getElementById('notes').value = '';
+  document.getElementById('followup-date').value = '';
+  document.getElementById('btn-new').classList.remove('selected');
+  document.getElementById('btn-existing').classList.remove('selected');
+  document.getElementById('btn-internal').classList.remove('selected');
+  goToStep(1);
+  document.getElementById('waiting').style.display = 'none';
+  document.getElementById('popup').style.display = 'block';
+  document.querySelector('.logger-panel').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goToStep(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById('step'+i).classList.toggle('hidden', i !== n);
+    const ind = document.getElementById('step'+i+'-ind');
+    ind.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
   });
 }
 
-function resetActivityFields() {
-  // Hide all activity panels
-  document.querySelectorAll('[id^="fields-"]').forEach(el => el.classList.add('hidden'));
-  // Reset activity type
-  document.getElementById('activityType').value = '';
-  // Reset all inputs inside activity panels
-  document.querySelectorAll('[id^="fields-"] input, [id^="fields-"] select, [id^="fields-"] textarea').forEach(el => {
-    el.value = '';
+async function selectClientType(type) {
+  selectedClientType = type; selectedService = null;
+  document.getElementById('btn-new').classList.toggle('selected', type === 'new');
+  document.getElementById('btn-existing').classList.toggle('selected', type === 'existing');
+  document.getElementById('btn-internal').classList.toggle('selected', type === 'internal');
+
+  if (type === 'internal') {
+    // Auto-submit immediately with no further steps
+    selectedService = 'Internal Call';
+    selectedOutcome = 'Internal Call';
+    await submitForm();
+    return;
+  }
+
+  const items = type === 'new' ? NEW_CLIENT_SERVICES : EXISTING_CLIENT_TYPES;
+  document.getElementById('step2-label').innerHTML = (type === 'new' ? 'Service Inquired About' : 'Reason for Call') + ' <span class="req">*</span>';
+  const grid = document.getElementById('option-grid');
+  grid.innerHTML = '';
+  items.forEach(item => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn'; btn.textContent = item;
+    btn.onclick = () => selectService(item, btn);
+    grid.appendChild(btn);
   });
-  // Reset tickers
-  document.querySelectorAll('.ticker-val').forEach(el => el.textContent = '0');
-  // Keep date at today
-  document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+  goToStep(2);
+}
+
+function selectService(service, btnEl) {
+  selectedService = service; selectedOutcome = null;
+  document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+  btnEl.classList.add('selected');
+  const grid = document.getElementById('outcome-grid');
+  grid.innerHTML = '';
+  OUTCOMES.forEach(o => {
+    const btn = document.createElement('button');
+    btn.className = 'outcome-btn'; btn.textContent = o;
+    btn.onclick = () => selectOutcome(o, btn);
+    grid.appendChild(btn);
+  });
+  goToStep(3);
+}
+
+function selectOutcome(outcome, btnEl) {
+  selectedOutcome = outcome;
+  document.querySelectorAll('.outcome-btn').forEach(b => b.classList.remove('selected'));
+  btnEl.classList.add('selected');
+  document.getElementById('followup-field').style.display = FOLLOWUP_OUTCOMES.includes(outcome) ? 'flex' : 'none';
+  goToStep(4);
+}
+
+async function submitForm() {
+  const errEl = document.getElementById('error-msg');
+  errEl.style.display = 'none';
+  if (!selectedClientType || !selectedService || !selectedOutcome) {
+    errEl.textContent = 'Please complete all required fields.';
+    errEl.style.display = 'block'; return;
+  }
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const res = await fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...currentCall, agentName, clientType: selectedClientType, service: selectedService, outcome: selectedOutcome, notes: document.getElementById('notes').value, followUpDate: document.getElementById('followup-date').value }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      const t = document.getElementById('toast');
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+      setTimeout(() => { document.getElementById('popup').style.display = 'none'; document.getElementById('waiting').style.display = 'flex'; }, 1500);
+    } else {
+      errEl.textContent = data.error || 'Failed to save. Try again.';
+      errEl.style.display = 'block';
+    }
+  } catch { errEl.textContent = 'Network error. Please try again.'; errEl.style.display = 'block'; }
+  btn.disabled = false; btn.textContent = 'Save Call Log';
+}
+
+function formatDuration(s) {
+  if (!s) return '0:00';
+  return Math.floor(s/60) + ':' + (s%60).toString().padStart(2,'0');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+loadRCWidget();
+if (extensionId && agentName) {
+  document.getElementById('agent-select').value = extensionId;
+  initUI();
 }
 </script>
 </body>
