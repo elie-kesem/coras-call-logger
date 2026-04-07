@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL ||
-  'https://script.google.com/macros/s/AKfycbzZ9hbLj2ecF9PJgzBpfh3UBTxzGL-WZSawktSdtFeICofuPvLZumeGFGEavH-mQ8SH/exec';
+  'https://script.google.com/macros/s/AKfycbz_-V_REex012_GpwYc5Elrp135AVuyONudgkccPKNJ2fypx5nXINsYHQOOkuNP8r9n/exec';
 
 const RC_CLIENT_ID = process.env.RC_CLIENT_ID || '4wQyQGPz0HYcwQ1JGnPy45';
 const RC_CLIENT_SECRET = process.env.RC_CLIENT_SECRET || 'bUghqhsGdjHeQpAuEDuToLdsDGSiaFFA8bdv9X3h4GOu';
