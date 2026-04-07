@@ -14,10 +14,20 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
-
+ 
+ 
+  /* ── Top Nav ── */
+  .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .nav-logo { display: flex; align-items: center; gap: 8px; }
+  .nav-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .nav-toggle { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .nav-toggle a { padding: 5px 14px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-decoration: none; transition: all 0.15s; }
+  .nav-toggle a.active { background: var(--accent); color: #000; }
+  .nav-toggle a:hover:not(.active) { color: var(--text); }
+ 
   /* ── Layout ── */
-  .app-layout { display: flex; flex: 1; min-height: 100vh; }
-
+  .app-layout { display: flex; flex: 1; min-height: calc(100vh - 45px); }
+ 
   /* ── Phone Panel ── */
   .phone-panel { width: 300px; min-width: 300px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
   .phone-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
@@ -25,28 +35,28 @@
   @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
   .phone-header-text { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
   #rc-widget-container { flex: 1; overflow: hidden; position: relative; min-height: 100vh; }
-
+ 
   /* ── Logger Panel ── */
   .logger-panel { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 28px 24px; overflow-y: auto; max-width: 100%; }
   .logger-inner { width: 100%; max-width: 580px; }
-
+ 
   /* ── Agent Setup ── */
   #agent-setup { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; display: flex; flex-direction: column; gap: 18px; margin: 40px auto; max-width: 380px; }
   #agent-setup h2 { font-size: 17px; font-weight: 600; }
   #agent-setup p { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
-
+ 
   /* ── Header bar inside logger ── */
   .logger-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
   .logger-title { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
   .agent-badge { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); background: var(--surface2); border: 1px solid var(--border); padding: 3px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px; }
   .agent-badge button { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 10px; padding: 0; }
   .agent-badge button:hover { color: var(--danger); }
-
+ 
   /* ── Waiting ── */
   #waiting { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 60px 0; color: var(--text-dim); }
   .waiting-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 24px; }
   #waiting p { font-size: 13px; }
-
+ 
   /* ── Popup ── */
   #popup { display: none; width: 100%; animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1); }
   @keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -107,8 +117,18 @@
 </style>
 </head>
 <body>
+<div class="top-nav">
+  <div class="nav-logo">
+    <div class="logo-dot"></div>
+    <span class="nav-title">CORAS Wellness</span>
+  </div>
+  <div class="nav-toggle">
+    <a href="/index.html" class="active">📞 Call Logger</a>
+    <a href="/hub.html">📋 Hub Activity</a>
+  </div>
+</div>
 <div class="app-layout">
-
+ 
   <!-- LEFT: Embedded Phone -->
   <div class="phone-panel">
     <div class="phone-header">
@@ -117,11 +137,11 @@
     </div>
     <div id="rc-widget-container"></div>
   </div>
-
+ 
   <!-- RIGHT: Logger -->
   <div class="logger-panel">
     <div class="logger-inner">
-
+ 
       <!-- Agent Setup -->
       <div id="agent-setup">
         <h2>Select Your Name</h2>
@@ -135,7 +155,7 @@
         <div class="error-msg" id="login-error">Please select your name.</div>
         <button class="submit-btn" onclick="connectAgent()">Connect</button>
       </div>
-
+ 
       <!-- Logger header (shown after login) -->
       <div class="logger-header" id="logger-header" style="display:none;">
         <div class="logger-title">
@@ -147,13 +167,13 @@
           <button onclick="logout()" title="Sign out">✕</button>
         </div>
       </div>
-
+ 
       <!-- Waiting -->
       <div id="waiting">
         <div class="waiting-icon">📞</div>
         <p>Waiting for next call to end...</p>
       </div>
-
+ 
       <!-- Call Popup -->
       <div id="popup">
         <div class="call-banner">
@@ -217,17 +237,17 @@
           </div>
         </div>
       </div>
-
+ 
     </div>
   </div>
 </div>
-
+ 
 <div id="toast">✓ Call logged successfully</div>
-
+ 
 <script>
 const RC_CLIENT_ID = '4wQyQGPz0HYcwQ1JGnPy45';
 const RC_SERVER = 'https://platform.ringcentral.com';
-
+ 
 const AGENTS = [
   { name: 'Amy Green', extensionId: '63747196007' },
   { name: 'Anabell Rosario', extensionId: '62824418006' },
@@ -290,12 +310,12 @@ const AGENTS = [
   { name: 'Uche Obua', extensionId: '63747201007' },
   { name: 'Victoria Distler', extensionId: '63747207007' },
 ];
-
+ 
 const OUTCOMES = ['Appointment Scheduled','Left Voicemail','Not Interested','Follow Up Required','Transferred','Wrong Number','Intake Started','Insurance Verified','Referred to Different Location','Called Back Later','Disconnected / Bad Number','No Answer','Patient Already in Treatment','Not Eligible / Doesn\'t Meet Criteria','Callback Requested','Left Message with Third Party','Needs More Information'];
 const NEW_CLIENT_SERVICES = ['MAT / Methadone Treatment','IOP (Intensive Outpatient)','PHP (Partial Hospitalization)','Residential Treatment','DUI Services','General Inquiry','Insurance Verification','Reminder Call'];
 const EXISTING_CLIENT_TYPES = ['Appointment Reschedule / Cancel','Prescription Refill','Billing Question','Progress Update','Crisis Support','Lab Results','Referral to Another Location','General Question'];
 const FOLLOWUP_OUTCOMES = ['Follow Up Required','Callback Requested','Appointment Scheduled'];
-
+ 
 let agentName = localStorage.getItem('coras_agent_name');
 let extensionId = localStorage.getItem('coras_extension_id');
 let ws = null;
@@ -305,7 +325,7 @@ let selectedService = null;
 let selectedOutcome = null;
 let callStartTime = null;
 let activeCallData = {};
-
+ 
 // ── Populate dropdown ────────────────────────────────────────────────────────
 const sel = document.getElementById('agent-select');
 AGENTS.forEach(a => {
@@ -314,7 +334,7 @@ AGENTS.forEach(a => {
   opt.textContent = a.name;
   sel.appendChild(opt);
 });
-
+ 
 // ── Load RC Embeddable as iframe ─────────────────────────────────────────────
 function loadRCWidget() {
   const container = document.getElementById('rc-widget-container');
@@ -328,12 +348,12 @@ function loadRCWidget() {
   iframe.allow = 'microphone; camera; autoplay';
   container.appendChild(iframe);
 }
-
+ 
 // ── Listen for RC call events ────────────────────────────────────────────────
 window.addEventListener('message', (e) => {
   const data = e.data;
   if (!data || !data.type) return;
-
+ 
   // Track active call
   if (data.type === 'rc-active-call-notify') {
     const call = data.call || {};
@@ -349,23 +369,23 @@ window.addEventListener('message', (e) => {
       if (!callStartTime) callStartTime = Date.now();
     }
   }
-
+ 
   // Call ended
   if (data.type === 'rc-call-end-notify') {
     const call = data.call || {};
     const durationSeconds = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
     callStartTime = null;
-
+ 
     const direction = activeCallData.direction || (call.direction === 'Outbound' ? 'Outbound' : 'Inbound');
     const isOutbound = direction === 'Outbound';
-
+ 
     const otherPhone = isOutbound
       ? (activeCallData.to || call.to?.phoneNumber || call.toNumber || 'Unknown')
       : (activeCallData.from || call.from?.phoneNumber || call.fromNumber || 'Unknown');
     const otherName = isOutbound
       ? (activeCallData.toName || call.to?.name || 'Unknown Caller')
       : (activeCallData.fromName || call.from?.name || 'Unknown Caller');
-
+ 
     const callData = {
       formId: 'rc-' + Date.now(),
       agentName: agentName || 'Agent',
@@ -376,12 +396,12 @@ window.addEventListener('message', (e) => {
       startTime: new Date(Date.now() - durationSeconds * 1000).toISOString(),
       sessionId: activeCallData.sessionId || call.sessionId || '',
     };
-
+ 
     activeCallData = {};
     if (agentName) showPopup(callData);
   }
 });
-
+ 
 // ── Agent setup ──────────────────────────────────────────────────────────────
 function connectAgent() {
   const select = document.getElementById('agent-select');
@@ -394,7 +414,7 @@ function connectAgent() {
   localStorage.setItem('coras_agent_name', agentName);
   initUI();
 }
-
+ 
 function logout() {
   localStorage.removeItem('coras_extension_id');
   localStorage.removeItem('coras_agent_name');
@@ -405,7 +425,7 @@ function logout() {
   document.getElementById('waiting').style.display = 'none';
   document.getElementById('popup').style.display = 'none';
 }
-
+ 
 function initUI() {
   document.getElementById('agent-setup').style.display = 'none';
   document.getElementById('logger-header').style.display = 'flex';
@@ -414,7 +434,7 @@ function initUI() {
   document.getElementById('agent-name-display').textContent = agentName;
   connectWS();
 }
-
+ 
 // ── WebSocket (fallback for webhook-based calls) ──────────────────────────────
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -426,7 +446,7 @@ function connectWS() {
   };
   ws.onclose = () => setTimeout(connectWS, 3000);
 }
-
+ 
 // ── Form ─────────────────────────────────────────────────────────────────────
 function showPopup(callData) {
   currentCall = callData;
@@ -447,7 +467,7 @@ function showPopup(callData) {
   document.getElementById('popup').style.display = 'block';
   document.querySelector('.logger-panel').scrollTo({ top: 0, behavior: 'smooth' });
 }
-
+ 
 function goToStep(n) {
   [1,2,3,4].forEach(i => {
     document.getElementById('step'+i).classList.toggle('hidden', i !== n);
@@ -455,13 +475,13 @@ function goToStep(n) {
     ind.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
   });
 }
-
+ 
 async function selectClientType(type) {
   selectedClientType = type; selectedService = null;
   document.getElementById('btn-new').classList.toggle('selected', type === 'new');
   document.getElementById('btn-existing').classList.toggle('selected', type === 'existing');
   document.getElementById('btn-internal').classList.toggle('selected', type === 'internal');
-
+ 
   if (type === 'internal') {
     // Auto-submit immediately with no further steps
     selectedService = 'Internal Call';
@@ -469,7 +489,7 @@ async function selectClientType(type) {
     await submitForm();
     return;
   }
-
+ 
   const items = type === 'new' ? NEW_CLIENT_SERVICES : EXISTING_CLIENT_TYPES;
   document.getElementById('step2-label').innerHTML = (type === 'new' ? 'Service Inquired About' : 'Reason for Call') + ' <span class="req">*</span>';
   const grid = document.getElementById('option-grid');
@@ -482,7 +502,7 @@ async function selectClientType(type) {
   });
   goToStep(2);
 }
-
+ 
 function selectService(service, btnEl) {
   selectedService = service; selectedOutcome = null;
   document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
@@ -497,7 +517,7 @@ function selectService(service, btnEl) {
   });
   goToStep(3);
 }
-
+ 
 function selectOutcome(outcome, btnEl) {
   selectedOutcome = outcome;
   document.querySelectorAll('.outcome-btn').forEach(b => b.classList.remove('selected'));
@@ -505,7 +525,7 @@ function selectOutcome(outcome, btnEl) {
   document.getElementById('followup-field').style.display = FOLLOWUP_OUTCOMES.includes(outcome) ? 'flex' : 'none';
   goToStep(4);
 }
-
+ 
 async function submitForm() {
   const errEl = document.getElementById('error-msg');
   errEl.style.display = 'none';
@@ -534,12 +554,12 @@ async function submitForm() {
   } catch { errEl.textContent = 'Network error. Please try again.'; errEl.style.display = 'block'; }
   btn.disabled = false; btn.textContent = 'Save Call Log';
 }
-
+ 
 function formatDuration(s) {
   if (!s) return '0:00';
   return Math.floor(s/60) + ':' + (s%60).toString().padStart(2,'0');
 }
-
+ 
 // ── Init ─────────────────────────────────────────────────────────────────────
 loadRCWidget();
 if (extensionId && agentName) {
@@ -548,5 +568,4 @@ if (extensionId && agentName) {
 }
 </script>
 </body>
-</html>
 </html>
