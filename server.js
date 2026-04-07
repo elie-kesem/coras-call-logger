@@ -164,6 +164,9 @@ app.post('/webhook/ringcentral', async (req, res) => {
   const event = req.body?.body;
   if (!event) return;
 
+  // DEBUG: Log raw webhook payload (first 2000 chars)
+  console.log('WEBHOOK RAW:', JSON.stringify(req.body).substring(0, 2000));
+
   // Track call start time
   const sessionId = event?.sessionId;
   const partyStatuses = (event?.parties || []).map(p => p.status?.code);
