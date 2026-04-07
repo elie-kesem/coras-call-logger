@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CORAS Hub Activity Log</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #1c2330; --border: #2a3441;
+    --accent: #00c896; --accent-dim: rgba(0,200,150,0.12); --accent2: #0ea5e9;
+    --warn: #f59e0b; --danger: #ef4444; --text: #e6edf3;
+    --text-muted: #7d8590; --text-dim: #4d5566; --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── Top Nav ── */
+  .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .nav-logo { display: flex; align-items: center; gap: 8px; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+  .nav-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .nav-toggle { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .nav-toggle a { padding: 6px 16px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-decoration: none; transition: all 0.15s; }
+  .nav-toggle a.active { background: var(--accent); color: #000; }
+  .nav-toggle a:hover:not(.active) { color: var(--text); }
+
+  /* ── Main ── */
+  .main { max-width: 640px; margin: 0 auto; padding: 32px 24px; }
+
+  /* ── Card ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+  .card-title { font-size: 15px; font-weight: 600; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+
+  /* ── Fields ── */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+  .field label span.req { color: var(--accent); margin-left: 2px; }
+  select, input[type="text"], input[type="number"], input[type="date"], textarea {
+    background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
+    padding: 9px 12px; outline: none; width: 100%; transition: border-color 0.15s;
+  }
+  select { cursor: pointer; }
+  select:focus, input:focus, textarea:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 70px; }
+  textarea::placeholder { color: var(--text-dim); }
+
+  /* ── Duration ticker ── */
+  .ticker { display: flex; align-items: center; gap: 10px; }
+  .ticker-val { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 600; min-width: 60px; text-align: center; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; }
+  .ticker-btn { width: 36px; height: 36px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface2); color: var(--text); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .ticker-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ticker-label { font-size: 12px; color: var(--text-muted); }
+
+  /* ── Submit ── */
+  .submit-btn { width: 100%; padding: 13px; border-radius: var(--radius); border: none; background: var(--accent); color: #000; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-top: 4px; }
+  .submit-btn:hover { filter: brightness(1.1); }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Success toast ── */
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--accent); color: #000; padding: 12px 28px; border-radius: 40px; font-weight: 600; font-size: 14px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); z-index: 999; }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  .error-msg { font-size: 11px; color: var(--danger); display: none; padding: 7px 10px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; }
+  .hidden { display: none !important; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <div class="nav-logo">
+    <div class="logo-dot"></div>
+    <span class="nav-title">CORAS Wellness</span>
+  </div>
+  <div class="nav-toggle">
+    <a href="/index.html">📞 Call Logger</a>
+    <a href="/hub.html" class="active">📋 Hub Activity</a>
+  </div>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="card-title">Hub Activity Log</div>
+
+    <!-- Global Fields -->
+    <div class="field">
+      <label>Staff Name <span class="req">*</span></label>
+      <select id="staffName">
+        <option value="">-- Select your name --</option>
+        <option>Bennett Johnson</option>
+        <option>Korayma Rojas</option>
+        <option>Deniz Sotelo Rodriguez</option>
+        <option>Sally Rodriguez Sotelo</option>
+        <option>Geraldine McGinnis</option>
+        <option>Jocelyn Rodriguez</option>
+        <option>Magali Lopez</option>
+        <option>Nestor Lopez</option>
+        <option>Larica Curry</option>
+        <option>Kim Enger</option>
+      </select>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label>Date <span class="req">*</span></label>
+        <input type="date" id="entryDate"/>
+      </div>
+      <div class="field">
+        <label>Shift <span class="req">*</span></label>
+        <select id="shift">
+          <option value="">-- Select shift --</option>
+          <option>3am-11am</option>
+          <option>5am-1pm</option>
+          <option>7am-3pm</option>
+          <option>8am-4pm</option>
+          <option>9am-5pm</option>
+          <option>11am-7pm</option>
+          <option>12pm-8pm</option>
+          <option>5am-5pm</option>
+          <option>5pm-12am</option>
+          <option>7pm-3am</option>
+          <option>8pm-3am</option>
+          <option>8pm-5am</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Activity Type <span class="req">*</span></label>
+      <select id="activityType" onchange="showActivityFields()">
+        <option value="">-- Select activity --</option>
+        <option value="Phone Calls">Phone Calls</option>
+        <option value="Medical Records">Medical Records</option>
+        <option value="Open Beds">Open Beds</option>
+        <option value="Fax">Fax</option>
+        <option value="Dose Verifications">Dose Verifications & Pharmacy Requests</option>
+        <option value="Disability Forms">Disability Forms</option>
+        <option value="Email Referrals">Email Referrals</option>
+        <option value="Billing Audit">Billing Audit</option>
+        <option value="Scheduling">Scheduling</option>
+        <option value="Other Tasks">Other Tasks</option>
+      </select>
+    </div>
+
+    <!-- Phone Calls -->
+    <div id="fields-Phone Calls" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Call Type <span class="req">*</span></label>
+          <select id="pc-callType">
+            <option value="">-- Select --</option>
+            <option>Inbound</option>
+            <option>Outbound</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Purpose <span class="req">*</span></label>
+          <select id="pc-purpose">
+            <option value="">-- Select --</option>
+            <option>New Client Inquiry</option>
+            <option>Existing Client</option>
+            <option>Provider/Referral</option>
+            <option>Reminder Call</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Duration (minutes) <span class="req">*</span></label>
+        <div class="ticker">
+          <button class="ticker-btn" onclick="adjustTicker('pc-duration', -1)">−</button>
+          <div class="ticker-val" id="pc-duration">0</div>
+          <button class="ticker-btn" onclick="adjustTicker('pc-duration', 1)">+</button>
+          <span class="ticker-label">min</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="pc-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- Medical Records -->
+    <div id="fields-Medical Records" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>System <span class="req">*</span></label>
+          <select id="mr-system">
+            <option value="">-- Select --</option>
+            <option>Carelogic</option>
+            <option>KIPU</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Requestor Type <span class="req">*</span></label>
+          <select id="mr-requestorType">
+            <option value="">-- Select --</option>
+            <option>Insurance Carrier</option>
+            <option>Client</option>
+            <option>Provider</option>
+            <option>Internal</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Number of Records <span class="req">*</span></label>
+          <input type="number" id="mr-numRecords" min="0" placeholder="0"/>
+        </div>
+        <div class="field">
+          <label>Status <span class="req">*</span></label>
+          <select id="mr-status">
+            <option value="">-- Select --</option>
+            <option>Pulled</option>
+            <option>Sent</option>
+            <option>Pending</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="mr-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- Open Beds -->
+    <div id="fields-Open Beds" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Action <span class="req">*</span></label>
+          <select id="ob-action">
+            <option value="">-- Select --</option>
+            <option>Monitored</option>
+            <option>Responded</option>
+            <option>Escalated</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Outcome <span class="req">*</span></label>
+          <select id="ob-outcome">
+            <option value="">-- Select --</option>
+            <option>Placed</option>
+            <option>Pending</option>
+            <option>No Availability</option>
+            <option>Referred Elsewhere</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Referral Source <span class="req">*</span></label>
+        <input type="text" id="ob-referralSource" placeholder="e.g. Hospital, Agency name"/>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="ob-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- Fax -->
+    <div id="fields-Fax" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Document Type <span class="req">*</span></label>
+          <input type="text" id="fax-docType" placeholder="e.g. Referral, Auth, Records"/>
+        </div>
+        <div class="field">
+          <label>Sent To <span class="req">*</span></label>
+          <input type="text" id="fax-sentTo" placeholder="Recipient name or fax number"/>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Number of Pages <span class="req">*</span></label>
+          <input type="number" id="fax-pages" min="1" placeholder="0"/>
+        </div>
+        <div class="field">
+          <label>Confirmed Received <span class="req">*</span></label>
+          <select id="fax-confirmed">
+            <option value="">-- Select --</option>
+            <option>Yes</option>
+            <option>No</option>
+            <option>Pending</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="fax-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- Dose Verifications -->
+    <div id="fields-Dose Verifications" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Type <span class="req">*</span></label>
+          <select id="dv-type">
+            <option value="">-- Select --</option>
+            <option>Dose Verification</option>
+            <option>Pharmacy Request</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Status <span class="req">*</span></label>
+          <select id="dv-status">
+            <option value="">-- Select --</option>
+            <option>Verified</option>
+            <option>Pending</option>
+            <option>Unable to Reach</option>
+            <option>Completed</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Source / Contact <span class="req">*</span></label>
+          <input type="text" id="dv-source" placeholder="Hospital or pharmacy name"/>
+        </div>
+        <div class="field">
+          <label>Client ID</label>
+          <input type="text" id="dv-clientId" placeholder="Optional"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Action Taken <span class="req">*</span></label>
+        <input type="text" id="dv-actionTaken" placeholder="Describe what was done"/>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="dv-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- Disability Forms -->
+    <div id="fields-Disability Forms" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Form Type <span class="req">*</span></label>
+          <input type="text" id="df-formType" placeholder="e.g. SSI, FMLA, Short-term disability"/>
+        </div>
+        <div class="field">
+          <label>Submitted To <span class="req">*</span></label>
+          <input type="text" id="df-submittedTo" placeholder="Agency or contact"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Status <span class="req">*</span></label>
+        <select id="df-status">
+          <option value="">-- Select --</option>
+          <option>Submitted</option>
+          <option>Pending</option>
+          <option>Awaiting Signature</option>
+          <option>Completed</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="df-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- Email Referrals -->
+    <div id="fields-Email Referrals" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Referral Source <span class="req">*</span></label>
+          <input type="text" id="er-source" placeholder="Agency, provider, or sender"/>
+        </div>
+        <div class="field">
+          <label>Action Taken <span class="req">*</span></label>
+          <select id="er-action">
+            <option value="">-- Select --</option>
+            <option>Responded</option>
+            <option>Forwarded</option>
+            <option>Scheduled</option>
+            <option>Pending</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Follow-Up Required <span class="req">*</span></label>
+        <select id="er-followUp">
+          <option value="">-- Select --</option>
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="er-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- Billing Audit -->
+    <div id="fields-Billing Audit" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Logs Reviewed <span class="req">*</span></label>
+          <input type="number" id="ba-logsReviewed" min="0" placeholder="0"/>
+        </div>
+        <div class="field">
+          <label>Errors Found <span class="req">*</span></label>
+          <input type="number" id="ba-errorsFound" min="0" placeholder="0"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Errors Corrected <span class="req">*</span></label>
+        <input type="number" id="ba-errorsCorrected" min="0" placeholder="0"/>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="ba-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- Scheduling -->
+    <div id="fields-Scheduling" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Appointment Type <span class="req">*</span></label>
+          <select id="sc-apptType">
+            <option value="">-- Select --</option>
+            <option>New Intake</option>
+            <option>NP Appointment</option>
+            <option>Follow-Up</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Number Scheduled <span class="req">*</span></label>
+          <input type="number" id="sc-numScheduled" min="0" placeholder="0"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Reminder Calls Made <span class="req">*</span></label>
+        <input type="number" id="sc-reminderCalls" min="0" placeholder="0"/>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="sc-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- Other Tasks -->
+    <div id="fields-Other Tasks" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="field">
+        <label>Task Description <span class="req">*</span></label>
+        <input type="text" id="ot-description" placeholder="Describe the task"/>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Time Spent (minutes) <span class="req">*</span></label>
+          <div class="ticker">
+            <button class="ticker-btn" onclick="adjustTicker('ot-duration', -5)">−</button>
+            <div class="ticker-val" id="ot-duration">0</div>
+            <button class="ticker-btn" onclick="adjustTicker('ot-duration', 5)">+</button>
+            <span class="ticker-label">min</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Assigned By</label>
+          <input type="text" id="ot-assignedBy" placeholder="Optional"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="ot-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <div class="error-msg" id="error-msg">Please fill in all required fields.</div>
+    <button class="submit-btn" id="submit-btn" onclick="submitActivity()">Log Activity</button>
+  </div>
+</div>
+
+<div id="toast">✓ Entry logged.</div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzZ9hbLj2ecF9PJgzBpfh3UBTxzGL-WZSawktSdtFeICofuPvLZumeGFGEavH-mQ8SH/exec';
+
+const ACTIVITY_FIELDS = {
+  'Phone Calls': ['pc-callType', 'pc-purpose'],
+  'Medical Records': ['mr-system', 'mr-requestorType', 'mr-numRecords', 'mr-status'],
+  'Open Beds': ['ob-action', 'ob-outcome', 'ob-referralSource'],
+  'Fax': ['fax-docType', 'fax-sentTo', 'fax-pages', 'fax-confirmed'],
+  'Dose Verifications': ['dv-type', 'dv-status', 'dv-source', 'dv-actionTaken'],
+  'Disability Forms': ['df-formType', 'df-submittedTo', 'df-status'],
+  'Email Referrals': ['er-source', 'er-action', 'er-followUp'],
+  'Billing Audit': ['ba-logsReviewed', 'ba-errorsFound', 'ba-errorsCorrected'],
+  'Scheduling': ['sc-apptType', 'sc-numScheduled', 'sc-reminderCalls'],
+  'Other Tasks': ['ot-description'],
+};
+
+// Set today's date
+document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+
+// Restore persistent fields
+const saved = JSON.parse(localStorage.getItem('hub_globals') || '{}');
+if (saved.staffName) document.getElementById('staffName').value = saved.staffName;
+if (saved.shift) document.getElementById('shift').value = saved.shift;
+
+function showActivityFields() {
+  const type = document.getElementById('activityType').value;
+  // Hide all
+  document.querySelectorAll('[id^="fields-"]').forEach(el => el.classList.add('hidden'));
+  // Show selected
+  if (type) {
+    const el = document.getElementById('fields-' + type);
+    if (el) el.classList.remove('hidden');
+  }
+}
+
+function adjustTicker(id, delta) {
+  const el = document.getElementById(id);
+  const current = parseInt(el.textContent) || 0;
+  el.textContent = Math.max(0, current + delta);
+}
+
+function getVal(id) {
+  const el = document.getElementById(id);
+  if (!el) return '';
+  if (el.classList.contains('ticker-val')) return el.textContent;
+  return el.value;
+}
+
+async function submitActivity() {
+  const errEl = document.getElementById('error-msg');
+  errEl.style.display = 'none';
+
+  const staffName = getVal('staffName');
+  const entryDate = getVal('entryDate');
+  const shift = getVal('shift');
+  const activityType = getVal('activityType');
+
+  if (!staffName || !entryDate || !shift || !activityType) {
+    errEl.textContent = 'Please fill in all required fields.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Validate activity-specific required fields
+  const required = ACTIVITY_FIELDS[activityType] || [];
+  for (const id of required) {
+    const val = getVal(id);
+    if (!val || val === '0' && id.includes('duration')) continue;
+    if (!val) {
+      errEl.textContent = 'Please fill in all required fields.';
+      errEl.style.display = 'block';
+      return;
+    }
+  }
+
+  // Build payload based on activity type
+  const base = {
+    timestamp: new Date().toISOString(),
+    staffName, entryDate, shift, activityType,
+  };
+
+  let extra = {};
+  if (activityType === 'Phone Calls') {
+    extra = { callType: getVal('pc-callType'), purpose: getVal('pc-purpose'), duration: getVal('pc-duration') + ' min', notes: getVal('pc-notes') };
+  } else if (activityType === 'Medical Records') {
+    extra = { system: getVal('mr-system'), requestorType: getVal('mr-requestorType'), numRecords: getVal('mr-numRecords'), status: getVal('mr-status'), notes: getVal('mr-notes') };
+  } else if (activityType === 'Open Beds') {
+    extra = { action: getVal('ob-action'), referralSource: getVal('ob-referralSource'), outcome: getVal('ob-outcome'), notes: getVal('ob-notes') };
+  } else if (activityType === 'Fax') {
+    extra = { docType: getVal('fax-docType'), sentTo: getVal('fax-sentTo'), pages: getVal('fax-pages'), confirmed: getVal('fax-confirmed'), notes: getVal('fax-notes') };
+  } else if (activityType === 'Dose Verifications') {
+    extra = { type: getVal('dv-type'), source: getVal('dv-source'), clientId: getVal('dv-clientId'), actionTaken: getVal('dv-actionTaken'), status: getVal('dv-status'), notes: getVal('dv-notes') };
+  } else if (activityType === 'Disability Forms') {
+    extra = { formType: getVal('df-formType'), submittedTo: getVal('df-submittedTo'), status: getVal('df-status'), notes: getVal('df-notes') };
+  } else if (activityType === 'Email Referrals') {
+    extra = { referralSource: getVal('er-source'), actionTaken: getVal('er-action'), followUpRequired: getVal('er-followUp'), notes: getVal('er-notes') };
+  } else if (activityType === 'Billing Audit') {
+    extra = { logsReviewed: getVal('ba-logsReviewed'), errorsFound: getVal('ba-errorsFound'), errorsCorrected: getVal('ba-errorsCorrected'), notes: getVal('ba-notes') };
+  } else if (activityType === 'Scheduling') {
+    extra = { apptType: getVal('sc-apptType'), numScheduled: getVal('sc-numScheduled'), reminderCalls: getVal('sc-reminderCalls'), notes: getVal('sc-notes') };
+  } else if (activityType === 'Other Tasks') {
+    extra = { description: getVal('ot-description'), timeSpent: getVal('ot-duration') + ' min', assignedBy: getVal('ot-assignedBy'), notes: getVal('ot-notes') };
+  }
+
+  const payload = { ...base, ...extra, tab: activityType };
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Logging...';
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload),
+      redirect: 'follow',
+    });
+
+    // Save persistent fields
+    localStorage.setItem('hub_globals', JSON.stringify({ staffName, shift }));
+
+    // Show toast
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+
+    // Reset activity fields only
+    resetActivityFields();
+
+  } catch (err) {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.style.display = 'block';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Log Activity';
+}
+
+function resetActivityFields() {
+  // Hide all activity panels
+  document.querySelectorAll('[id^="fields-"]').forEach(el => el.classList.add('hidden'));
+  // Reset activity type
+  document.getElementById('activityType').value = '';
+  // Reset all inputs inside activity panels
+  document.querySelectorAll('[id^="fields-"] input, [id^="fields-"] select, [id^="fields-"] textarea').forEach(el => {
+    el.value = '';
+  });
+  // Reset tickers
+  document.querySelectorAll('.ticker-val').forEach(el => el.textContent = '0');
+  // Keep date at today
+  document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+}
+</script>
+</body>
+</html>
