@@ -1,3 +1,6 @@
+Index · HTML
+Copy
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -412,6 +415,10 @@ function connectAgent() {
   agentName = AGENTS.find(a => a.extensionId === extensionId)?.name || 'Agent';
   localStorage.setItem('coras_extension_id', extensionId);
   localStorage.setItem('coras_agent_name', agentName);
+  // Also save for hub form
+  const hubGlobals = JSON.parse(localStorage.getItem('hub_globals') || '{}');
+  hubGlobals.staffName = agentName;
+  localStorage.setItem('hub_globals', JSON.stringify(hubGlobals));
   initUI();
 }
  
