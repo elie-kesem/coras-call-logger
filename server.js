@@ -19,6 +19,17 @@ const wss = new WebSocket.Server({ server });
 
 app.use(cors());
 app.use(express.json());
+
+// Prevent caching of HTML files so agents always get the latest version
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html') || req.path === '/') {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const agents = new Map();              // extensionId -> ws
@@ -104,7 +115,7 @@ wss.on('connection', (ws) => {
       console.log(`Agent registered: ${msg.agentName} (ext ${agentExtId})`);
       ws.send(JSON.stringify({ type: 'registered', extensionId: agentExtId }));
 
-      // Deliver any queued popups from while agent was disconnected
+      // Deliver any queued popups
       const queued = pendingPopups.get(agentExtId);
       if (queued && queued.length > 0) {
         console.log(`[QUEUE] Delivering ${queued.length} queued popup(s) to ext ${agentExtId}`);
@@ -116,7 +127,9 @@ wss.on('connection', (ws) => {
     }
   });
   ws.on('close', () => {
-    if (agentExtId) agents.delete(agentExtId);
+    if (agentExtId && agents.get(agentExtId) === ws) {
+      agents.delete(agentExtId);
+    }
   });
 });
 
@@ -276,22 +289,37 @@ app.post('/webhook/ringcentral', async (req, res) => {
   timer.answeredBy.delete(eventExtId);
   if (timer.answeredBy.size === 0) sessionTimers.delete(sessionId);
 
-  // ── Deliver or queue popup ──
+  // ── Deliver popup: always queue + try to send ──
+  // Queue ensures delivery even if current WebSocket is stale
+  if (!pendingPopups.has(eventExtId)) pendingPopups.set(eventExtId, []);
+  pendingPopups.get(eventExtId).push(callData);
+  // Auto-expire after 5 min
+  setTimeout(() => {
+    const q = pendingPopups.get(eventExtId);
+    if (q) {
+      const idx = q.indexOf(callData);
+      if (idx !== -1) q.splice(idx, 1);
+      if (q.length === 0) pendingPopups.delete(eventExtId);
+    }
+  }, 300000);
+
+  // Try to send immediately
   const agentWs = agents.get(eventExtId);
   if (agentWs && agentWs.readyState === WebSocket.OPEN) {
-    agentWs.send(JSON.stringify({ type: 'call_ended', callData }));
-  } else {
-    console.log(`[QUEUE] Agent ext ${eventExtId} offline, queuing popup (5 min expiry)`);
-    if (!pendingPopups.has(eventExtId)) pendingPopups.set(eventExtId, []);
-    pendingPopups.get(eventExtId).push(callData);
-    setTimeout(() => {
+    try {
+      agentWs.send(JSON.stringify({ type: 'call_ended', callData }));
+      // Remove from queue since delivery succeeded
       const q = pendingPopups.get(eventExtId);
       if (q) {
         const idx = q.indexOf(callData);
         if (idx !== -1) q.splice(idx, 1);
         if (q.length === 0) pendingPopups.delete(eventExtId);
       }
-    }, 300000);
+    } catch (err) {
+      console.log(`[CALL] Send failed for ext ${eventExtId}, will deliver on reconnect`);
+    }
+  } else {
+    console.log(`[QUEUE] Agent ext ${eventExtId} offline, queued for reconnect`);
   }
 });
 
