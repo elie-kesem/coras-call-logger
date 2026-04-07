@@ -98,7 +98,7 @@ app.post('/webhook/ringcentral', async (req, res) => {
   res.status(200).send();
 
   const event = req.body?.body;
-  console.log('WEBHOOK RAW:', JSON.stringify(req.body, null, 2));
+console.log('WEBHOOK RAW:', JSON.stringify(req.body).substring(0, 2000));
   if (!event) return;
 
   // Track call start time
