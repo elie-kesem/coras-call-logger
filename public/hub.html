@@ -498,10 +498,72 @@ const ACTIVITY_FIELDS = {
 // Set today's date
 document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
 
-// Restore persistent fields
-const saved = JSON.parse(localStorage.getItem('hub_globals') || '{}');
-if (saved.staffName) document.getElementById('staffName').value = saved.staffName;
-if (saved.shift) document.getElementById('shift').value = saved.shift;
+// Auto-fill staff name from call logger session
+const callLoggerName = localStorage.getItem('coras_agent_name');
+const callLoggerExtId = localStorage.getItem('coras_extension_id');
+
+// Map extension IDs to hub staff names
+const EXT_TO_HUB_NAME = {
+  '62842636006': 'Bennett Johnson',
+  '62842640006': 'Korayma Rojas',
+  '62842639006': 'Deniz Sotelo Rodriguez',
+  '62842641006': 'Sally Rodriguez Sotelo',
+  '62842635006': 'Geraldine McGinnis',
+  '62842642006': 'Jocelyn Rodriguez',
+  '62842637006': 'Magali Lopez',
+  '62842638006': 'Nestor Lopez',
+  '62842643006': 'Larica Curry',
+  '63747227007': 'Kim Enger',
+};
+
+// Try to pre-fill from extension ID first, then fall back to saved name
+const hubName = EXT_TO_HUB_NAME[callLoggerExtId] || '';
+const savedName = JSON.parse(localStorage.getItem('hub_globals') || '{}').staffName || '';
+const nameToUse = hubName || savedName;
+if (nameToUse) document.getElementById('staffName').value = nameToUse;
+
+// Auto-detect shift from current time
+function detectShift() {
+  const now = new Date();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const mins = h * 60 + m;
+
+  // Each shift: [start_mins, end_mins, label]
+  const shifts = [
+    [3*60,    11*60,   '3am-11am'],
+    [5*60,    13*60,   '5am-1pm'],
+    [7*60,    15*60,   '7am-3pm'],
+    [8*60,    16*60,   '8am-4pm'],
+    [9*60,    17*60,   '9am-5pm'],
+    [11*60,   19*60,   '11am-7pm'],
+    [12*60,   20*60,   '12pm-8pm'],
+    [5*60,    17*60,   '5am-5pm'],
+    [17*60,   24*60,   '5pm-12am'],
+    [19*60,   27*60,   '7pm-3am'],
+    [20*60,   27*60,   '8pm-3am'],
+    [20*60,   29*60,   '8pm-5am'],
+  ];
+
+  // Find shifts currently active (started and not yet ended)
+  const active = shifts.filter(s => mins >= s[0] && mins < s[1]);
+  if (active.length > 0) {
+    // Pick the one that started most recently
+    const best = active.reduce((a, b) => b[0] > a[0] ? b : a);
+    return best[2];
+  }
+
+  // If no active shift, pick the one starting soonest
+  const upcoming = shifts.filter(s => s[0] > mins);
+  if (upcoming.length > 0) {
+    return upcoming.sort((a,b) => a[0]-b[0])[0][2];
+  }
+
+  return '';
+}
+
+const detectedShift = detectShift();
+if (detectedShift) document.getElementById('shift').value = detectedShift;
 
 function showActivityFields() {
   const type = document.getElementById('activityType').value;
