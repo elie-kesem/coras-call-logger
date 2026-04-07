@@ -21,12 +21,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const agents = new Map();        // extensionId -> ws
+const agents = new Map();              // extensionId -> ws
 const pendingForms = new Map();
-const callStartTimes = new Map(); // sessionId -> start timestamp
-const processedSessions = new Set(); // sessionIds already triggered popup
+const processedSessions = new Set();   // "sessionId:extId" combos already triggered
+const sessionTimers = new Map();       // sessionId -> { startTime, answeredBy: Set }
+const pendingPopups = new Map();       // extensionId -> [callData, ...] (queue for reconnect)
+const processedUuids = new Set();      // deduplicate across multiple subscriptions
 
-// Extension ID to agent name lookup (fallback for webhook data)
+// Extension ID to agent name lookup
 const AGENT_NAMES = {
   '63747196007': 'Amy Green',
   '62824418006': 'Anabell Rosario',
@@ -101,6 +103,16 @@ wss.on('connection', (ws) => {
       agents.set(agentExtId, ws);
       console.log(`Agent registered: ${msg.agentName} (ext ${agentExtId})`);
       ws.send(JSON.stringify({ type: 'registered', extensionId: agentExtId }));
+
+      // Deliver any queued popups from while agent was disconnected
+      const queued = pendingPopups.get(agentExtId);
+      if (queued && queued.length > 0) {
+        console.log(`[QUEUE] Delivering ${queued.length} queued popup(s) to ext ${agentExtId}`);
+        queued.forEach(callData => {
+          ws.send(JSON.stringify({ type: 'call_ended', callData }));
+        });
+        pendingPopups.delete(agentExtId);
+      }
     }
   });
   ws.on('close', () => {
@@ -135,7 +147,6 @@ app.post('/api/rc-auth', async (req, res) => {
       return res.status(400).json({ error: 'Failed to get token', detail: token });
     }
 
-    // Fetch user info to get extension ID and name
     const meRes = await fetch(`${RC_SERVER}/restapi/v1.0/account/~/extension/~`, {
       headers: { 'Authorization': `Bearer ${token.access_token}` }
     });
@@ -154,6 +165,7 @@ app.post('/api/rc-auth', async (req, res) => {
 
 // ── RingCentral Webhook ──────────────────────────────────────────────────────
 app.post('/webhook/ringcentral', async (req, res) => {
+  // Handle subscription validation
   const validationToken = req.headers['validation-token'];
   if (validationToken) {
     res.set('Validation-Token', validationToken);
@@ -161,118 +173,129 @@ app.post('/webhook/ringcentral', async (req, res) => {
   }
   res.status(200).send();
 
+  const uuid = req.body?.uuid;
+  const eventFilter = req.body?.event || '';
   const event = req.body?.body;
   if (!event) return;
 
-  // DEBUG: Log raw webhook payload (first 2000 chars)
-  console.log('WEBHOOK RAW:', JSON.stringify(req.body).substring(0, 2000));
+  // ── DEDUP: Skip duplicate events from multiple subscriptions ──
+  if (uuid) {
+    if (processedUuids.has(uuid)) return;
+    processedUuids.add(uuid);
+    setTimeout(() => processedUuids.delete(uuid), 120000);
+  }
 
-  // Track call start time
+  // ── FILTER: Only process extension-level events ──
+  // Account-level events (/account/xxx/telephony/sessions) have no extension
+  // in the URL and produce unreliable party data
+  if (!eventFilter.includes('/extension/')) return;
+
+  // Extract extension ID from the event filter URL
+  const extMatch = eventFilter.match(/\/extension\/(\d+)\//);
+  const eventExtId = extMatch ? extMatch[1] : null;
+
+  // ── FILTER: Only process events for known agents ──
+  if (!eventExtId || !AGENT_NAMES[eventExtId]) return;
+
   const sessionId = event?.sessionId;
-  const partyStatuses = (event?.parties || []).map(p => p.status?.code);
-  const hasAnswered = partyStatuses.some(s => s === 'Answered');
-  const hasProceeding = partyStatuses.some(s => s === 'Proceeding');
-  
-  console.log(`Session ${sessionId} - statuses: ${JSON.stringify(partyStatuses)}, hasAnswered: ${hasAnswered}`);
-  
-  // Start timer on Answered OR Proceeding (for outbound calls that connect)
-  if ((hasAnswered || hasProceeding) && sessionId && !callStartTimes.has(sessionId)) {
-    callStartTimes.set(sessionId, Date.now());
-    console.log(`Started timer for session ${sessionId}`);
-  }
-
-  // Accept telephony session disconnects and presence NoCall events
-  // Only process telephony session events with Disconnected party status
-  const isCallEnd = partyStatuses.some(s => s === 'Disconnected');
-  if (!isCallEnd) return;
-  if (!event?.parties?.length) return;
-  // Skip if already processed this session
-  if (sessionId && processedSessions.has(sessionId)) return;
-
   const parties = event?.parties || [];
+  if (!parties.length || !sessionId) return;
 
-  // Get extensionId from party data or top-level event
-  const agentParty = parties.find(p => p.from?.extensionId) || parties[0];
-  const topExtId = event?.extensionId ? String(event.extensionId) : null;
-  const extId = String(agentParty?.from?.extensionId || topExtId || 'unknown');
+  const party = parties[0];
+  const statusCode = party?.status?.code;
+  const direction = party?.direction;
 
-  // Use activeCalls for direction — most reliable source
-  const activeCall = event?.activeCalls?.[0];
-  const direction = activeCall?.direction === 'Outbound' ? 'Outbound' :
-    (agentParty?.direction === 'Outbound' ? 'Outbound' : 'Inbound');
-
-  let otherPhone, otherName;
-  if (direction === 'Outbound') {
-    // Agent dialed out — other party is the "to" number
-    otherPhone = activeCall?.to || agentParty?.to?.phoneNumber || 'Unknown';
-    otherName = agentParty?.to?.name || 'Unknown Caller';
-  } else {
-    // Inbound — other party is the "from" number
-    otherPhone = activeCall?.from || agentParty?.from?.phoneNumber || 'Unknown';
-    // For inbound, agent's own number is in from if it's their extension
-    // Find the non-agent party
-    const inboundParty = parties.find(p => !p.from?.extensionId) || parties[1];
-    if (inboundParty) {
-      otherPhone = inboundParty.from?.phoneNumber || otherPhone;
-      otherName = inboundParty.from?.name || 'Unknown Caller';
-    } else {
-      otherName = 'Unknown Caller';
+  // ── TRACK: Record when an agent answers ──
+  if (statusCode === 'Answered') {
+    if (!sessionTimers.has(sessionId)) {
+      sessionTimers.set(sessionId, { startTime: Date.now(), answeredBy: new Set() });
     }
+    sessionTimers.get(sessionId).answeredBy.add(eventExtId);
+    console.log(`[CALL] Session ${sessionId} - ${AGENT_NAMES[eventExtId]} answered (${direction})`);
+    return;
   }
 
-  // Look up agent name from RC webhook data
-  // For outbound: agent is the "from" party
-  // For inbound: agent is the "to" party (they received the call)
-  // Also check activeCalls for the agent's name
-  let rcAgentName = 'Unknown';
-  if (direction === 'Outbound') {
-    rcAgentName = agentParty?.from?.name || activeCall?.fromName || 'Unknown';
+  // ── IGNORE: Setup, Proceeding, Voicemail events ──
+  if (statusCode !== 'Disconnected') return;
+
+  // ── FILTER: Skip ring-no-answer and missed calls ──
+  const reason = party?.status?.reason;
+  if (reason === 'AgentDropped' || party?.missedCall) return;
+
+  // ── FILTER: Only trigger popup if this agent actually answered the call ──
+  const timer = sessionTimers.get(sessionId);
+  if (!timer || !timer.answeredBy.has(eventExtId)) return;
+
+  // ── DEDUP: One popup per session per agent ──
+  const sessionExtKey = `${sessionId}:${eventExtId}`;
+  if (processedSessions.has(sessionExtKey)) return;
+  processedSessions.add(sessionExtKey);
+  setTimeout(() => processedSessions.delete(sessionExtKey), 120000);
+
+  // ── Calculate duration ──
+  const callDuration = Math.round((Date.now() - timer.startTime) / 1000);
+
+  // Skip calls shorter than 3 seconds
+  if (callDuration < 3) {
+    console.log(`[CALL] Session ${sessionId} - ${AGENT_NAMES[eventExtId]} ${callDuration}s, too short, skipping`);
+    return;
+  }
+
+  // ── Build call data ──
+  let otherPhone, otherName;
+  if (direction === 'Inbound') {
+    otherPhone = party?.from?.phoneNumber || 'Unknown';
+    otherName = party?.from?.name || 'Unknown Caller';
+    // Clean forwarded names like "Wellness and Recovery Helpline - WIRELESS CALLER"
+    if (otherName.includes(' - ')) {
+      otherName = otherName.split(' - ').pop().trim();
+    }
   } else {
-    // Inbound: agent answered, so their name is in the "to" side
-    const agentAsTo = parties.find(p => p.to?.extensionId);
-    rcAgentName = agentAsTo?.to?.name || agentParty?.to?.name || activeCall?.toName || 'Unknown';
+    otherPhone = party?.to?.phoneNumber || 'Unknown';
+    otherName = party?.to?.name || 'Unknown Caller';
   }
-  // Fallback: look up from AGENTS list by extension ID
-  if (rcAgentName === 'Unknown' || rcAgentName === 'Unknown Caller') {
-    rcAgentName = AGENT_NAMES[extId] || 'Unknown';
-  }
+
+  const agentName = AGENT_NAMES[eventExtId];
 
   const callData = {
     formId: uuidv4(),
-    agentId: extId,
-    agentName: rcAgentName,
-    rcAgentName,
+    agentId: eventExtId,
+    agentName: agentName,
+    rcAgentName: agentName,
     callerPhone: otherPhone,
     callerName: otherName,
-    direction,
-    duration: sessionId && callStartTimes.has(sessionId)
-      ? Math.round((Date.now() - callStartTimes.get(sessionId)) / 1000) : 0,
+    direction: direction || 'Unknown',
+    duration: callDuration,
     startTime: event?.eventTime || new Date().toISOString(),
-    sessionId: event?.sessionId || uuidv4(),
+    sessionId: sessionId,
   };
 
-  pendingForms.set(callData.formId, callData);
-  if (sessionId) {
-    callStartTimes.delete(sessionId);
-    processedSessions.add(sessionId);
-    setTimeout(() => processedSessions.delete(sessionId), 60000);
-  }
+  console.log(`[CALL] Popup: ${agentName} | ${direction} | ${otherPhone} ${otherName} | ${callDuration}s`);
 
-  // Route to specific agent by extension ID — never broadcast
-  if (extId === 'unknown') {
-    console.log(`Session ${sessionId} - no extension ID found, skipping popup`);
-    return;
-  }
-  const agentWs = agents.get(extId);
+  // Clean up timer if no other agents are pending on this session
+  timer.answeredBy.delete(eventExtId);
+  if (timer.answeredBy.size === 0) sessionTimers.delete(sessionId);
+
+  // ── Deliver or queue popup ──
+  const agentWs = agents.get(eventExtId);
   if (agentWs && agentWs.readyState === WebSocket.OPEN) {
-    console.log(`Routing popup to agent ext ${extId}`);
     agentWs.send(JSON.stringify({ type: 'call_ended', callData }));
   } else {
-    console.log(`Agent ext ${extId} not connected, popup dropped`);
+    console.log(`[QUEUE] Agent ext ${eventExtId} offline, queuing popup (5 min expiry)`);
+    if (!pendingPopups.has(eventExtId)) pendingPopups.set(eventExtId, []);
+    pendingPopups.get(eventExtId).push(callData);
+    setTimeout(() => {
+      const q = pendingPopups.get(eventExtId);
+      if (q) {
+        const idx = q.indexOf(callData);
+        if (idx !== -1) q.splice(idx, 1);
+        if (q.length === 0) pendingPopups.delete(eventExtId);
+      }
+    }, 300000);
   }
 });
 
-// ── Submit → Google Sheets via Apps Script ───────────────────────────────────
+// ── Submit to Google Sheets ──────────────────────────────────────────────────
 app.post('/api/submit', async (req, res) => {
   const {
     formId, outcome, notes, followUpDate,
@@ -337,9 +360,10 @@ app.post('/api/submit', async (req, res) => {
 
 // ── Test popup ───────────────────────────────────────────────────────────────
 app.post('/api/test-popup', (req, res) => {
+  const targetExt = req.body.extensionId || 'test';
   const callData = {
     formId: uuidv4(),
-    agentId: req.body.extensionId || 'test',
+    agentId: targetExt,
     agentName: req.body.agentName || 'Test Agent',
     callerPhone: '+13025550123',
     callerName: 'John Smith',
@@ -348,12 +372,17 @@ app.post('/api/test-popup', (req, res) => {
     startTime: new Date().toISOString(),
     sessionId: uuidv4(),
   };
-  pendingForms.set(callData.formId, callData);
-  wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN)
-      client.send(JSON.stringify({ type: 'call_ended', callData }));
-  });
-  res.json({ success: true, callData });
+  const agentWs = agents.get(targetExt);
+  if (agentWs && agentWs.readyState === WebSocket.OPEN) {
+    agentWs.send(JSON.stringify({ type: 'call_ended', callData }));
+    res.json({ success: true, callData, routed: true });
+  } else {
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN)
+        client.send(JSON.stringify({ type: 'call_ended', callData }));
+    });
+    res.json({ success: true, callData, routed: false, broadcast: true });
+  }
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
