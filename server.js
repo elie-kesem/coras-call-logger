@@ -26,6 +26,70 @@ const pendingForms = new Map();
 const callStartTimes = new Map(); // sessionId -> start timestamp
 const processedSessions = new Set(); // sessionIds already triggered popup
 
+// Extension ID to agent name lookup (fallback for webhook data)
+const AGENT_NAMES = {
+  '63747196007': 'Amy Green',
+  '62824418006': 'Anabell Rosario',
+  '63866477007': 'Becca Lewis',
+  '62842636006': 'Bennett Johnson',
+  '63794397007': 'Catherine Asem',
+  '63747245007': 'Chelsea Hickey',
+  '62831034006': 'Christina Spanos',
+  '63747246007': 'Claudia Corzo',
+  '63747234007': 'Cynthia Prange',
+  '63747233007': 'Danshanara Turlington',
+  '63747222007': 'Davida Mccray',
+  '62842639006': 'Deniz Sotelo Rodriguez',
+  '63870421007': 'Dennis Thompson',
+  '62842473006': 'Elie Orgel',
+  '62842635006': 'Geraldine Mcginnis',
+  '63747197007': 'Humberto Hernandez',
+  '62837438006': 'Ivoria Harris',
+  '63857220007': 'Jami Knowland',
+  '63877665007': 'Jamie Paolini',
+  '63747205007': 'Jay Cantor',
+  '62843219006': 'Jenn Begley',
+  '63747244007': 'Jennifer Screen',
+  '63866476007': 'Jessica Butler',
+  '62842642006': 'Jocelyn Rodriguez',
+  '63747195007': 'Kelly Emmell',
+  '63747227007': 'Kim Enger',
+  '62842640006': 'Korayma Rojas',
+  '62842546006': 'Kylee Howell',
+  '63747210007': 'Kyra Berrios',
+  '62842643006': 'Larica Curry',
+  '63747240007': 'Latasha Spruill',
+  '63908826007': 'Latoya Smith',
+  '63747239007': 'Latoya Waples',
+  '63870423007': 'Lisa Rodriguez',
+  '62842637006': 'Magali Lopez',
+  '63747215007': 'Marco Hernandez',
+  '63747204007': 'Megan Cooper',
+  '63747203007': 'Melissa Wiley',
+  '63747238007': 'Michael Trzeciakiewicz',
+  '63747209007': 'Naomi Middleton',
+  '62842638006': 'Nestor Lopez',
+  '63851655007': 'Nicole Worseck-Dixon',
+  '63747208007': 'Nya Stanley',
+  '63747202007': 'Okechukwu Obua',
+  '63747232007': 'Patricia Ayers',
+  '62831037006': 'Rache Fitzgerald',
+  '63747220007': 'Ricky Thomas',
+  '63747221007': 'Robert Isakoff',
+  '63747223007': 'Robert Miller',
+  '63747231007': 'Ron Romanelli',
+  '62842641006': 'Sally Rodriguez Sotelo',
+  '62837202006': 'Shannon Brady',
+  '63747237007': 'Shelby Stevens',
+  '63747225007': 'Sixto Rey Troche',
+  '62844939006': 'Stephanie Falkner',
+  '63747243007': 'Susanna Larvie',
+  '62791907006': 'Sylvia Simon',
+  '63804918007': 'Syreeta Monte',
+  '63747201007': 'Uche Obua',
+  '63747207007': 'Victoria Distler',
+};
+
 // ── WebSocket ────────────────────────────────────────────────────────────────
 wss.on('connection', (ws) => {
   let agentExtId = null;
@@ -98,7 +162,6 @@ app.post('/webhook/ringcentral', async (req, res) => {
   res.status(200).send();
 
   const event = req.body?.body;
-console.log('WEBHOOK RAW:', JSON.stringify(req.body).substring(0, 2000));
   if (!event) return;
 
   // Track call start time
@@ -154,8 +217,22 @@ console.log('WEBHOOK RAW:', JSON.stringify(req.body).substring(0, 2000));
     }
   }
 
-  // Look up agent name from extension ID
-  const rcAgentName = agentParty?.from?.name || 'Unknown';
+  // Look up agent name from RC webhook data
+  // For outbound: agent is the "from" party
+  // For inbound: agent is the "to" party (they received the call)
+  // Also check activeCalls for the agent's name
+  let rcAgentName = 'Unknown';
+  if (direction === 'Outbound') {
+    rcAgentName = agentParty?.from?.name || activeCall?.fromName || 'Unknown';
+  } else {
+    // Inbound: agent answered, so their name is in the "to" side
+    const agentAsTo = parties.find(p => p.to?.extensionId);
+    rcAgentName = agentAsTo?.to?.name || agentParty?.to?.name || activeCall?.toName || 'Unknown';
+  }
+  // Fallback: look up from AGENTS list by extension ID
+  if (rcAgentName === 'Unknown' || rcAgentName === 'Unknown Caller') {
+    rcAgentName = AGENT_NAMES[extId] || 'Unknown';
+  }
 
   const callData = {
     formId: uuidv4(),
@@ -198,10 +275,16 @@ app.post('/api/submit', async (req, res) => {
     formId, outcome, notes, followUpDate,
     agentName, rcAgentName, callerPhone, callerName,
     direction, duration, startTime, sessionId,
-    clientType, service
+    clientType, service, submissionId
   } = req.body;
 
-  if (!outcome) return res.status(400).json({ error: 'Outcome is required' });
+  const sid = submissionId || 'NO-ID';
+  console.log(`[SUBMIT ${sid}] Received from ${agentName} | ${clientType} | ${service} | ${outcome}`);
+
+  if (!outcome) {
+    console.log(`[SUBMIT ${sid}] REJECTED: missing outcome`);
+    return res.status(400).json({ error: 'Outcome is required' });
+  }
 
   const payload = {
     timestamp: new Date().toISOString(),
@@ -218,6 +301,7 @@ app.post('/api/submit', async (req, res) => {
     notes: notes || '',
     followUpDate: followUpDate || '',
     rcAgentName: rcAgentName || '',
+    submissionId: sid,
   };
 
   try {
@@ -228,15 +312,23 @@ app.post('/api/submit', async (req, res) => {
       redirect: 'follow',
     });
 
-    console.log('Apps Script response status:', response.status);
     const text = await response.text();
-    console.log('Apps Script response body:', text);
+    console.log(`[SUBMIT ${sid}] Apps Script status: ${response.status} | body: ${text}`);
 
-    pendingForms.delete(formId);
-    res.json({ success: true });
+    let result;
+    try { result = JSON.parse(text); } catch { result = {}; }
+
+    if (result.success) {
+      console.log(`[SUBMIT ${sid}] SUCCESS`);
+      pendingForms.delete(formId);
+      res.json({ success: true, submissionId: sid });
+    } else {
+      console.error(`[SUBMIT ${sid}] APPS SCRIPT ERROR: ${result.error || text}`);
+      res.status(500).json({ error: result.error || 'Apps Script reported failure', submissionId: sid });
+    }
   } catch (err) {
-    console.error('Sheet error:', err.message);
-    res.status(500).json({ error: 'Failed to save to Google Sheets', detail: err.message });
+    console.error(`[SUBMIT ${sid}] NETWORK ERROR: ${err.message}`);
+    res.status(500).json({ error: 'Failed to save to Google Sheets: ' + err.message, submissionId: sid });
   }
 });
 
