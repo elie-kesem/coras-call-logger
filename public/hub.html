@@ -133,8 +133,7 @@
       <label>Activity Type <span class="req">*</span></label>
       <select id="activityType" onchange="showActivityFields()">
         <option value="">-- Select activity --</option>
-        <option value="Phone Calls">Phone Calls</option>
-        <option value="Medical Records">Medical Records</option>
+<option value="Medical Records">Medical Records</option>
         <option value="Open Beds">Open Beds</option>
         <option value="Fax">Fax</option>
         <option value="Dose Verifications">Dose Verifications & Pharmacy Requests</option>
@@ -144,44 +143,6 @@
         <option value="Scheduling">Scheduling</option>
         <option value="Other Tasks">Other Tasks</option>
       </select>
-    </div>
-
-    <!-- Phone Calls -->
-    <div id="fields-Phone Calls" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="grid-2">
-        <div class="field">
-          <label>Call Type <span class="req">*</span></label>
-          <select id="pc-callType">
-            <option value="">-- Select --</option>
-            <option>Inbound</option>
-            <option>Outbound</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Purpose <span class="req">*</span></label>
-          <select id="pc-purpose">
-            <option value="">-- Select --</option>
-            <option>New Client Inquiry</option>
-            <option>Existing Client</option>
-            <option>Provider/Referral</option>
-            <option>Reminder Call</option>
-            <option>Other</option>
-          </select>
-        </div>
-      </div>
-      <div class="field">
-        <label>Duration (minutes) <span class="req">*</span></label>
-        <div class="ticker">
-          <button class="ticker-btn" onclick="adjustTicker('pc-duration', -1)">−</button>
-          <div class="ticker-val" id="pc-duration">0</div>
-          <button class="ticker-btn" onclick="adjustTicker('pc-duration', 1)">+</button>
-          <span class="ticker-label">min</span>
-        </div>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="pc-notes" placeholder="Optional notes..."></textarea>
-      </div>
     </div>
 
     <!-- Medical Records -->
@@ -209,7 +170,7 @@
       <div class="grid-2">
         <div class="field">
           <label>Number of Records <span class="req">*</span></label>
-          <input type="number" id="mr-numRecords" min="0" placeholder="0"/>
+          <input type="number" id="mr-numRecords" min="1" value="1"/>
         </div>
         <div class="field">
           <label>Status <span class="req">*</span></label>
@@ -483,10 +444,9 @@
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzZ9hbLj2ecF9PJgzBpfh3UBTxzGL-WZSawktSdtFeICofuPvLZumeGFGEavH-mQ8SH/exec';
 
 const ACTIVITY_FIELDS = {
-  'Phone Calls': ['pc-callType', 'pc-purpose'],
-  'Medical Records': ['mr-system', 'mr-requestorType', 'mr-numRecords', 'mr-status'],
+'Medical Records': ['mr-system', 'mr-requestorType', 'mr-numRecords', 'mr-status'],
   'Open Beds': ['ob-action', 'ob-outcome', 'ob-referralSource'],
-  'Fax': ['fax-docType', 'fax-sentTo', 'fax-pages', 'fax-confirmed'],
+  'Fax': ['fax-docType', 'fax-sentTo'],
   'Dose Verifications': ['dv-type', 'dv-status', 'dv-source', 'dv-actionTaken'],
   'Disability Forms': ['df-formType', 'df-submittedTo', 'df-status'],
   'Email Referrals': ['er-source', 'er-action', 'er-followUp'],
@@ -623,14 +583,12 @@ async function submitActivity() {
   };
 
   let extra = {};
-  if (activityType === 'Phone Calls') {
-    extra = { callType: getVal('pc-callType'), purpose: getVal('pc-purpose'), duration: getVal('pc-duration') + ' min', notes: getVal('pc-notes') };
-  } else if (activityType === 'Medical Records') {
+  if (activityType === 'Medical Records') {
     extra = { system: getVal('mr-system'), requestorType: getVal('mr-requestorType'), numRecords: getVal('mr-numRecords'), status: getVal('mr-status'), notes: getVal('mr-notes') };
   } else if (activityType === 'Open Beds') {
     extra = { action: getVal('ob-action'), referralSource: getVal('ob-referralSource'), outcome: getVal('ob-outcome'), notes: getVal('ob-notes') };
   } else if (activityType === 'Fax') {
-    extra = { docType: getVal('fax-docType'), sentTo: getVal('fax-sentTo'), pages: getVal('fax-pages'), confirmed: getVal('fax-confirmed'), notes: getVal('fax-notes') };
+    extra = { docType: getVal('fax-docType'), sentTo: getVal('fax-sentTo'), notes: getVal('fax-notes') };
   } else if (activityType === 'Dose Verifications') {
     extra = { type: getVal('dv-type'), source: getVal('dv-source'), clientId: getVal('dv-clientId'), actionTaken: getVal('dv-actionTaken'), status: getVal('dv-status'), notes: getVal('dv-notes') };
   } else if (activityType === 'Disability Forms') {
