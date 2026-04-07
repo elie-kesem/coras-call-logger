@@ -116,6 +116,18 @@
   .error-msg { font-size: 11px; color: var(--danger); display: none; padding: 7px 10px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; }
   #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--accent); color: #000; padding: 10px 22px; border-radius: 40px; font-weight: 600; font-size: 13px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); z-index: 999; white-space: nowrap; }
   #toast.show { transform: translateX(-50%) translateY(0); }
+  /* ── Confirmation Card ── */
+  #confirmation { display: none; width: 100%; animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1); }
+  .confirm-card { background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius); padding: 24px; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  .confirm-icon { font-size: 36px; }
+  .confirm-title { font-size: 16px; font-weight: 600; color: var(--accent); }
+  .confirm-id { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 600; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 20px; letter-spacing: 0.05em; user-select: all; cursor: pointer; }
+  .confirm-hint { font-size: 11px; color: var(--text-muted); }
+  .confirm-details { font-size: 12px; color: var(--text-muted); text-align: left; width: 100%; background: var(--surface2); border-radius: 8px; padding: 12px; line-height: 1.6; }
+  .confirm-details span { color: var(--text); }
+  .confirm-error { color: var(--danger); font-size: 12px; font-weight: 500; }
+  .confirm-dismiss { background: none; border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 8px 20px; cursor: pointer; margin-top: 4px; transition: all 0.15s; }
+  .confirm-dismiss:hover { border-color: var(--accent); color: var(--text); }
   .divider { height: 1px; background: var(--border); }
   .hidden { display: none !important; }
   .back-btn { background: none; border: none; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 0; }
@@ -248,11 +260,24 @@
         </div>
       </div>
  
+      <!-- Confirmation -->
+      <div id="confirmation">
+        <div class="confirm-card">
+          <div class="confirm-icon" id="confirm-icon">✓</div>
+          <div class="confirm-title" id="confirm-title">Call Logged Successfully</div>
+          <div class="confirm-id" id="confirm-id" title="Click to copy"></div>
+          <div class="confirm-hint">Submission ID (tap to copy, screenshot for your records)</div>
+          <div class="confirm-details" id="confirm-details"></div>
+          <div class="confirm-error" id="confirm-error" style="display:none;"></div>
+          <button class="confirm-dismiss" onclick="dismissConfirmation()">Done</button>
+        </div>
+      </div>
+ 
     </div>
   </div>
 </div>
  
-<div id="toast">✓ Call logged successfully</div>
+<div id="toast">✓ Copied to clipboard</div>
  
 <script>
 const RC_CLIENT_ID = '4wQyQGPz0HYcwQ1JGnPy45';
@@ -512,6 +537,15 @@ function selectOutcome(outcome, btnEl) {
   goToStep(4);
 }
  
+function generateSubmissionId() {
+  const now = new Date();
+  const date = now.toISOString().split('T')[0].replace(/-/g, '');
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return 'CL-' + date + '-' + code;
+}
+
 async function submitForm() {
   const errEl = document.getElementById('error-msg');
   errEl.style.display = 'none';
@@ -519,26 +553,94 @@ async function submitForm() {
     errEl.textContent = 'Please complete all required fields.';
     errEl.style.display = 'block'; return;
   }
+  const submissionId = generateSubmissionId();
   const btn = document.getElementById('submit-btn');
   btn.disabled = true; btn.textContent = 'Saving...';
+
+  const payload = {
+    ...currentCall,
+    agentName,
+    clientType: selectedClientType,
+    service: selectedService,
+    outcome: selectedOutcome,
+    notes: document.getElementById('notes').value,
+    followUpDate: document.getElementById('followup-date').value,
+    submissionId,
+  };
+
+  let success = false;
+  let errorMsg = '';
   try {
     const res = await fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...currentCall, agentName, clientType: selectedClientType, service: selectedService, outcome: selectedOutcome, notes: document.getElementById('notes').value, followUpDate: document.getElementById('followup-date').value }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (data.success) {
+      success = true;
+    } else {
+      errorMsg = data.error || 'Server reported failure.';
+    }
+  } catch (e) {
+    errorMsg = 'Network error: ' + (e.message || 'Could not reach server.');
+  }
+
+  btn.disabled = false; btn.textContent = 'Save Call Log';
+  showConfirmation(submissionId, payload, success, errorMsg);
+}
+
+function showConfirmation(submissionId, payload, success, errorMsg) {
+  document.getElementById('popup').style.display = 'none';
+  document.getElementById('waiting').style.display = 'none';
+
+  const icon = document.getElementById('confirm-icon');
+  const title = document.getElementById('confirm-title');
+  const idEl = document.getElementById('confirm-id');
+  const details = document.getElementById('confirm-details');
+  const errEl = document.getElementById('confirm-error');
+
+  idEl.textContent = submissionId;
+  idEl.onclick = () => {
+    navigator.clipboard.writeText(submissionId).then(() => {
       const t = document.getElementById('toast');
       t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 2500);
-      setTimeout(() => { document.getElementById('popup').style.display = 'none'; document.getElementById('waiting').style.display = 'flex'; }, 1500);
-    } else {
-      errEl.textContent = data.error || 'Failed to save. Try again.';
-      errEl.style.display = 'block';
-    }
-  } catch { errEl.textContent = 'Network error. Please try again.'; errEl.style.display = 'block'; }
-  btn.disabled = false; btn.textContent = 'Save Call Log';
+      setTimeout(() => t.classList.remove('show'), 1500);
+    });
+  };
+
+  const dir = payload.direction || 'Unknown';
+  const phone = payload.callerPhone || 'Unknown';
+  const name = payload.callerName || 'Unknown';
+  details.innerHTML =
+    'Agent: <span>' + (payload.agentName || '') + '</span><br>' +
+    'Direction: <span>' + dir + '</span><br>' +
+    'Phone: <span>' + phone + '</span><br>' +
+    'Name: <span>' + name + '</span><br>' +
+    'Type: <span>' + (payload.clientType || '') + '</span><br>' +
+    'Service: <span>' + (payload.service || '') + '</span><br>' +
+    'Outcome: <span>' + (payload.outcome || '') + '</span>';
+
+  if (success) {
+    icon.textContent = '✓';
+    title.textContent = 'Call Logged Successfully';
+    title.style.color = 'var(--accent)';
+    errEl.style.display = 'none';
+  } else {
+    icon.textContent = '⚠';
+    title.textContent = 'Submission Failed';
+    title.style.color = 'var(--danger)';
+    errEl.textContent = errorMsg + ' Please screenshot this and report to your supervisor.';
+    errEl.style.display = 'block';
+  }
+
+  document.getElementById('confirmation').style.display = 'block';
+  document.querySelector('.logger-panel').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function dismissConfirmation() {
+  document.getElementById('confirmation').style.display = 'none';
+  document.getElementById('waiting').style.display = 'flex';
 }
  
 function formatDuration(s) {
