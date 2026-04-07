@@ -57,6 +57,12 @@
   .waiting-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 24px; }
   #waiting p { font-size: 13px; }
  
+  /* ── WebSocket Status ── */
+  .ws-status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); margin-top: 8px; }
+  .ws-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .ws-dot.connected { background: var(--accent); box-shadow: 0 0 4px var(--accent); }
+  .ws-dot.disconnected { background: var(--danger); box-shadow: 0 0 4px var(--danger); }
+ 
   /* ── Popup ── */
   #popup { display: none; width: 100%; animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1); }
   @keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -172,6 +178,10 @@
       <div id="waiting">
         <div class="waiting-icon">📞</div>
         <p>Waiting for next call to end...</p>
+        <div class="ws-status">
+          <div class="ws-dot disconnected" id="ws-dot"></div>
+          <span id="ws-label">Connecting...</span>
+        </div>
       </div>
  
       <!-- Call Popup -->
@@ -323,8 +333,6 @@ let currentCall = null;
 let selectedClientType = null;
 let selectedService = null;
 let selectedOutcome = null;
-let callStartTime = null;
-let activeCallData = {};
  
 // ── Populate dropdown ────────────────────────────────────────────────────────
 const sel = document.getElementById('agent-select');
@@ -335,7 +343,7 @@ AGENTS.forEach(a => {
   sel.appendChild(opt);
 });
  
-// ── Load RC Embeddable as iframe ─────────────────────────────────────────────
+// ── Load RC Embeddable as iframe (phone only, no call detection) ─────────────
 function loadRCWidget() {
   const container = document.getElementById('rc-widget-container');
   const iframe = document.createElement('iframe');
@@ -348,59 +356,6 @@ function loadRCWidget() {
   iframe.allow = 'microphone; camera; autoplay';
   container.appendChild(iframe);
 }
- 
-// ── Listen for RC call events ────────────────────────────────────────────────
-window.addEventListener('message', (e) => {
-  const data = e.data;
-  if (!data || !data.type) return;
- 
-  // Track active call
-  if (data.type === 'rc-active-call-notify') {
-    const call = data.call || {};
-    if (call.telephonyStatus && call.telephonyStatus !== 'NoCall') {
-      activeCallData = {
-        direction: call.direction === 'Outbound' ? 'Outbound' : 'Inbound',
-        sessionId: call.sessionId || '',
-        from: call.from?.phoneNumber || call.fromNumber || '',
-        fromName: call.from?.name || call.fromName || '',
-        to: call.to?.phoneNumber || call.toNumber || '',
-        toName: call.to?.name || call.toName || '',
-      };
-      if (!callStartTime) callStartTime = Date.now();
-    }
-  }
- 
-  // Call ended
-  if (data.type === 'rc-call-end-notify') {
-    const call = data.call || {};
-    const durationSeconds = callStartTime ? Math.round((Date.now() - callStartTime) / 1000) : 0;
-    callStartTime = null;
- 
-    const direction = activeCallData.direction || (call.direction === 'Outbound' ? 'Outbound' : 'Inbound');
-    const isOutbound = direction === 'Outbound';
- 
-    const otherPhone = isOutbound
-      ? (activeCallData.to || call.to?.phoneNumber || call.toNumber || 'Unknown')
-      : (activeCallData.from || call.from?.phoneNumber || call.fromNumber || 'Unknown');
-    const otherName = isOutbound
-      ? (activeCallData.toName || call.to?.name || 'Unknown Caller')
-      : (activeCallData.fromName || call.from?.name || 'Unknown Caller');
- 
-    const callData = {
-      formId: 'rc-' + Date.now(),
-      agentName: agentName || 'Agent',
-      callerPhone: otherPhone,
-      callerName: otherName,
-      direction,
-      duration: durationSeconds,
-      startTime: new Date(Date.now() - durationSeconds * 1000).toISOString(),
-      sessionId: activeCallData.sessionId || call.sessionId || '',
-    };
- 
-    activeCallData = {};
-    if (agentName) showPopup(callData);
-  }
-});
  
 // ── Agent setup ──────────────────────────────────────────────────────────────
 function connectAgent() {
@@ -424,6 +379,7 @@ function logout() {
   localStorage.removeItem('coras_agent_name');
   extensionId = null; agentName = null;
   if (ws) ws.close();
+  updateWsStatus(false);
   document.getElementById('agent-setup').style.display = 'flex';
   document.getElementById('logger-header').style.display = 'none';
   document.getElementById('waiting').style.display = 'none';
@@ -439,16 +395,43 @@ function initUI() {
   connectWS();
 }
  
-// ── WebSocket (fallback for webhook-based calls) ──────────────────────────────
+// ── WebSocket status indicator ───────────────────────────────────────────────
+function updateWsStatus(connected) {
+  const dot = document.getElementById('ws-dot');
+  const label = document.getElementById('ws-label');
+  if (connected) {
+    dot.className = 'ws-dot connected';
+    label.textContent = 'Connected (ext ' + extensionId + ')';
+  } else {
+    dot.className = 'ws-dot disconnected';
+    label.textContent = 'Reconnecting...';
+  }
+}
+ 
+// ── WebSocket: sole source for call popups ───────────────────────────────────
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}`);
-  ws.onopen = () => ws.send(JSON.stringify({ type: 'register', extensionId, agentName }));
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: 'register', extensionId, agentName }));
+    updateWsStatus(true);
+  };
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.type === 'call_ended') showPopup(msg.callData);
+    if (msg.type === 'registered') {
+      console.log('Registered with server, ext:', msg.extensionId);
+    }
+    if (msg.type === 'call_ended') {
+      showPopup(msg.callData);
+    }
   };
-  ws.onclose = () => setTimeout(connectWS, 3000);
+  ws.onclose = () => {
+    updateWsStatus(false);
+    setTimeout(connectWS, 3000);
+  };
+  ws.onerror = () => {
+    updateWsStatus(false);
+  };
 }
  
 // ── Form ─────────────────────────────────────────────────────────────────────
@@ -487,7 +470,6 @@ async function selectClientType(type) {
   document.getElementById('btn-internal').classList.toggle('selected', type === 'internal');
  
   if (type === 'internal') {
-    // Auto-submit immediately with no further steps
     selectedService = 'Internal Call';
     selectedOutcome = 'Internal Call';
     await submitForm();
