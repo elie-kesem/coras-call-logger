@@ -255,17 +255,17 @@ app.post('/webhook/ringcentral', async (req, res) => {
     setTimeout(() => processedSessions.delete(sessionId), 60000);
   }
 
-  // Route to specific agent by extension ID
+  // Route to specific agent by extension ID — never broadcast
+  if (extId === 'unknown') {
+    console.log(`Session ${sessionId} - no extension ID found, skipping popup`);
+    return;
+  }
   const agentWs = agents.get(extId);
   if (agentWs && agentWs.readyState === WebSocket.OPEN) {
     console.log(`Routing popup to agent ext ${extId}`);
     agentWs.send(JSON.stringify({ type: 'call_ended', callData }));
   } else {
-    console.log(`Agent ext ${extId} not connected, broadcasting to all`);
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN)
-        client.send(JSON.stringify({ type: 'call_ended', callData }));
-    });
+    console.log(`Agent ext ${extId} not connected, popup dropped`);
   }
 });
 
