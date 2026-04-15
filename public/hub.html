@@ -15,7 +15,6 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  /* ── Top Nav ── */
   .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
   .nav-logo { display: flex; align-items: center; gap: 8px; }
   .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
@@ -26,14 +25,11 @@
   .nav-toggle a.active { background: var(--accent); color: #000; }
   .nav-toggle a:hover:not(.active) { color: var(--text); }
 
-  /* ── Main ── */
   .main { max-width: 640px; margin: 0 auto; padding: 32px 24px; }
 
-  /* ── Card ── */
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; gap: 18px; }
   .card-title { font-size: 15px; font-weight: 600; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
 
-  /* ── Fields ── */
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
   .field label span.req { color: var(--accent); margin-left: 2px; }
@@ -48,19 +44,10 @@
   textarea { resize: vertical; min-height: 70px; }
   textarea::placeholder { color: var(--text-dim); }
 
-  /* ── Duration ticker ── */
-  .ticker { display: flex; align-items: center; gap: 10px; }
-  .ticker-val { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 600; min-width: 60px; text-align: center; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; }
-  .ticker-btn { width: 36px; height: 36px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface2); color: var(--text); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-  .ticker-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .ticker-label { font-size: 12px; color: var(--text-muted); }
-
-  /* ── Submit ── */
   .submit-btn { width: 100%; padding: 13px; border-radius: var(--radius); border: none; background: var(--accent); color: #000; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-top: 4px; }
   .submit-btn:hover { filter: brightness(1.1); }
   .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  /* ── Success toast ── */
   #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--accent); color: #000; padding: 12px 28px; border-radius: 40px; font-weight: 600; font-size: 14px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); z-index: 999; }
   #toast.show { transform: translateX(-50%) translateY(0); }
 
@@ -133,16 +120,245 @@
       <label>Activity Type <span class="req">*</span></label>
       <select id="activityType" onchange="showActivityFields()">
         <option value="">-- Select activity --</option>
-<option value="Medical Records">Medical Records</option>
+        <option value="Call Transfer">Call Transfer</option>
+        <option value="Client Support">Client Support</option>
+        <option value="Communication">Communication</option>
+        <option value="Billing Log">Billing Log</option>
+        <option value="Scheduling">Scheduling</option>
+        <option value="Medical Records">Medical Records</option>
         <option value="Open Beds">Open Beds</option>
         <option value="Fax">Fax</option>
         <option value="Dose Verifications">Dose Verifications & Pharmacy Requests</option>
         <option value="Disability Forms">Disability Forms</option>
         <option value="Email Referrals">Email Referrals</option>
         <option value="Billing Audit">Billing Audit</option>
-        <option value="Scheduling">Scheduling</option>
-        <option value="Other Tasks">Other Tasks</option>
       </select>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- CALL TRANSFER                              -->
+    <!-- ══════════════════════════════════════════ -->
+    <div id="fields-Call Transfer" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Transferred To <span class="req">*</span></label>
+          <select id="ct-transferredTo">
+            <option value="">-- Select --</option>
+            <option>Newark</option>
+            <option>Dover</option>
+            <option>Millsboro</option>
+            <option>Harrington</option>
+            <option>Wilmington</option>
+            <option>New Hope (Residential)</option>
+            <option>Specific Staff Member</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Caller Type <span class="req">*</span></label>
+          <select id="ct-callerType">
+            <option value="">-- Select --</option>
+            <option>Existing Client</option>
+            <option>New Client</option>
+            <option>Provider / Facility</option>
+            <option>Insurance Carrier</option>
+            <option>Family Member</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Outcome <span class="req">*</span></label>
+        <select id="ct-outcome">
+          <option value="">-- Select --</option>
+          <option>Connected</option>
+          <option>No Answer - Left VM</option>
+          <option>No Answer - Sent Email</option>
+          <option>No Answer - Client Will Call Back</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="ct-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- CLIENT SUPPORT                             -->
+    <!-- Insurance, Rx, Transportation, Referral    -->
+    <!-- List, Directions, Appt Verify, KIPU/Chart  -->
+    <!-- ══════════════════════════════════════════ -->
+    <div id="fields-Client Support" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Type <span class="req">*</span></label>
+          <select id="cs-type">
+            <option value="">-- Select --</option>
+            <option>Insurance Verification</option>
+            <option>Prescription / Medication</option>
+            <option>Transportation</option>
+            <option>Referral List Verification</option>
+            <option>Directions / Clinic Info</option>
+            <option>Appointment Verification</option>
+            <option>KIPU / Chart Update</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Status <span class="req">*</span></label>
+          <select id="cs-status">
+            <option value="">-- Select --</option>
+            <option>Completed</option>
+            <option>Pending</option>
+            <option>Forwarded to Provider</option>
+            <option>Transferred to Clinic</option>
+            <option>Emailed Clinic</option>
+            <option>Unable to Resolve</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Detail</label>
+        <input type="text" id="cs-detail" placeholder="e.g. DMAP, Dr. Obua, Modivcare, DUI list"/>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="cs-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- COMMUNICATION                              -->
+    <!-- Email, Voicemail, External Facility Call    -->
+    <!-- ══════════════════════════════════════════ -->
+    <div id="fields-Communication" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Channel <span class="req">*</span></label>
+          <select id="cm-channel">
+            <option value="">-- Select --</option>
+            <option>Email</option>
+            <option>Voicemail</option>
+            <option>Phone Call (External Facility)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Action <span class="req">*</span></label>
+          <select id="cm-action">
+            <option value="">-- Select --</option>
+            <option>Sent</option>
+            <option>Replied</option>
+            <option>Forwarded</option>
+            <option>Read / Reviewed</option>
+            <option>Returned Call</option>
+            <option>Left Voicemail</option>
+            <option>Took Message</option>
+            <option>Redirected to Conexio</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Recipient / Sender <span class="req">*</span></label>
+          <input type="text" id="cm-contact" placeholder="Name, clinic, or facility"/>
+        </div>
+        <div class="field">
+          <label>Regarding</label>
+          <select id="cm-regarding">
+            <option value="">-- Select --</option>
+            <option>Client Callback</option>
+            <option>Provider Request</option>
+            <option>DUI Inquiry</option>
+            <option>Prescription / Medication</option>
+            <option>Billing Log</option>
+            <option>Transportation</option>
+            <option>Open Beds / Referral</option>
+            <option>Residential Inquiry</option>
+            <option>Internal / Staff</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="cm-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- BILLING LOG                                -->
+    <!-- ══════════════════════════════════════════ -->
+    <div id="fields-Billing Log" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Action <span class="req">*</span></label>
+          <select id="bl-action">
+            <option value="">-- Select --</option>
+            <option>Created New Log</option>
+            <option>Updated Log</option>
+            <option>Audited</option>
+            <option>Shared / Submitted</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Agent Audited</label>
+          <select id="bl-agentAudited">
+            <option value="">-- N/A --</option>
+            <option>Bennett Johnson</option>
+            <option>Korayma Rojas</option>
+            <option>Deniz Sotelo Rodriguez</option>
+            <option>Sally Rodriguez Sotelo</option>
+            <option>Geraldine McGinnis</option>
+            <option>Jocelyn Rodriguez</option>
+            <option>Magali Lopez</option>
+            <option>Nestor Lopez</option>
+            <option>Larica Curry</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Clients on Log</label>
+          <input type="number" id="bl-clientCount" min="0" placeholder="0"/>
+        </div>
+        <div class="field">
+          <label>Errors Found</label>
+          <input type="number" id="bl-errorsFound" min="0" placeholder="0"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="bl-notes" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- EXISTING CATEGORIES (unchanged)            -->
+    <!-- ══════════════════════════════════════════ -->
+
+    <!-- Scheduling -->
+    <div id="fields-Scheduling" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="grid-2">
+        <div class="field">
+          <label>Appointment Type <span class="req">*</span></label>
+          <select id="sc-apptType">
+            <option value="">-- Select --</option>
+            <option>New Intake</option>
+            <option>NP Appointment</option>
+            <option>Follow-Up</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Number Scheduled <span class="req">*</span></label>
+          <input type="number" id="sc-numScheduled" min="0" placeholder="0"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Reminder Calls Made <span class="req">*</span></label>
+        <input type="number" id="sc-reminderCalls" min="0" placeholder="0"/>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="sc-notes" placeholder="Optional notes..."></textarea>
+      </div>
     </div>
 
     <!-- Medical Records -->
@@ -378,61 +594,6 @@
       </div>
     </div>
 
-    <!-- Scheduling -->
-    <div id="fields-Scheduling" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="grid-2">
-        <div class="field">
-          <label>Appointment Type <span class="req">*</span></label>
-          <select id="sc-apptType">
-            <option value="">-- Select --</option>
-            <option>New Intake</option>
-            <option>NP Appointment</option>
-            <option>Follow-Up</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Number Scheduled <span class="req">*</span></label>
-          <input type="number" id="sc-numScheduled" min="0" placeholder="0"/>
-        </div>
-      </div>
-      <div class="field">
-        <label>Reminder Calls Made <span class="req">*</span></label>
-        <input type="number" id="sc-reminderCalls" min="0" placeholder="0"/>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="sc-notes" placeholder="Optional notes..."></textarea>
-      </div>
-    </div>
-
-    <!-- Other Tasks -->
-    <div id="fields-Other Tasks" class="hidden" style="display:flex;flex-direction:column;gap:14px;">
-      <div class="field">
-        <label>Task Description <span class="req">*</span></label>
-        <input type="text" id="ot-description" placeholder="Describe the task"/>
-      </div>
-      <div class="grid-2">
-        <div class="field">
-          <label>Time Spent (minutes) <span class="req">*</span></label>
-          <div class="ticker">
-            <button class="ticker-btn" onclick="adjustTicker('ot-duration', -5)">−</button>
-            <div class="ticker-val" id="ot-duration">0</div>
-            <button class="ticker-btn" onclick="adjustTicker('ot-duration', 5)">+</button>
-            <span class="ticker-label">min</span>
-          </div>
-        </div>
-        <div class="field">
-          <label>Assigned By</label>
-          <input type="text" id="ot-assignedBy" placeholder="Optional"/>
-        </div>
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="ot-notes" placeholder="Optional notes..."></textarea>
-      </div>
-    </div>
-
     <div class="error-msg" id="error-msg">Please fill in all required fields.</div>
     <button class="submit-btn" id="submit-btn" onclick="submitActivity()">Log Activity</button>
   </div>
@@ -444,25 +605,24 @@
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_-V_REex012_GpwYc5Elrp135AVuyONudgkccPKNJ2fypx5nXINsYHQOOkuNP8r9n/exec';
 
 const ACTIVITY_FIELDS = {
-'Medical Records': ['mr-system', 'mr-requestorType', 'mr-numRecords', 'mr-status'],
+  'Call Transfer': ['ct-transferredTo', 'ct-callerType', 'ct-outcome'],
+  'Client Support': ['cs-type', 'cs-status'],
+  'Communication': ['cm-channel', 'cm-action', 'cm-contact'],
+  'Billing Log': ['bl-action'],
+  'Scheduling': ['sc-apptType', 'sc-numScheduled', 'sc-reminderCalls'],
+  'Medical Records': ['mr-system', 'mr-requestorType', 'mr-numRecords', 'mr-status'],
   'Open Beds': ['ob-action', 'ob-outcome', 'ob-referralSource'],
   'Fax': ['fax-docType', 'fax-sentTo'],
   'Dose Verifications': ['dv-type', 'dv-status', 'dv-source', 'dv-actionTaken'],
   'Disability Forms': ['df-formType', 'df-submittedTo', 'df-status'],
   'Email Referrals': ['er-source', 'er-action', 'er-followUp'],
   'Billing Audit': ['ba-logsReviewed', 'ba-errorsFound', 'ba-errorsCorrected'],
-  'Scheduling': ['sc-apptType', 'sc-numScheduled', 'sc-reminderCalls'],
-  'Other Tasks': ['ot-description'],
 };
 
-// Set today's date
 document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
 
-// Auto-fill staff name from call logger session
-const callLoggerName = localStorage.getItem('coras_agent_name');
 const callLoggerExtId = localStorage.getItem('coras_extension_id');
 
-// Map extension IDs to hub staff names
 const EXT_TO_HUB_NAME = {
   '62842636006': 'Bennett Johnson',
   '62842640006': 'Korayma Rojas',
@@ -476,49 +636,24 @@ const EXT_TO_HUB_NAME = {
   '63747227007': 'Kim Enger',
 };
 
-// Try to pre-fill from extension ID first, then fall back to saved name
 const hubName = EXT_TO_HUB_NAME[callLoggerExtId] || '';
 const savedName = JSON.parse(localStorage.getItem('hub_globals') || '{}').staffName || '';
 const nameToUse = hubName || savedName;
 if (nameToUse) document.getElementById('staffName').value = nameToUse;
 
-// Auto-detect shift from current time
 function detectShift() {
   const now = new Date();
-  const h = now.getHours();
-  const m = now.getMinutes();
-  const mins = h * 60 + m;
-
-  // Each shift: [start_mins, end_mins, label]
+  const mins = now.getHours() * 60 + now.getMinutes();
   const shifts = [
-    [3*60,    11*60,   '3am-11am'],
-    [5*60,    13*60,   '5am-1pm'],
-    [7*60,    15*60,   '7am-3pm'],
-    [8*60,    16*60,   '8am-4pm'],
-    [9*60,    17*60,   '9am-5pm'],
-    [11*60,   19*60,   '11am-7pm'],
-    [12*60,   20*60,   '12pm-8pm'],
-    [5*60,    17*60,   '5am-5pm'],
-    [17*60,   24*60,   '5pm-12am'],
-    [19*60,   27*60,   '7pm-3am'],
-    [20*60,   27*60,   '8pm-3am'],
-    [20*60,   29*60,   '8pm-5am'],
+    [3*60,11*60,'3am-11am'],[5*60,13*60,'5am-1pm'],[7*60,15*60,'7am-3pm'],
+    [8*60,16*60,'8am-4pm'],[9*60,17*60,'9am-5pm'],[11*60,19*60,'11am-7pm'],
+    [12*60,20*60,'12pm-8pm'],[5*60,17*60,'5am-5pm'],[17*60,24*60,'5pm-12am'],
+    [19*60,27*60,'7pm-3am'],[20*60,27*60,'8pm-3am'],[20*60,29*60,'8pm-5am'],
   ];
-
-  // Find shifts currently active (started and not yet ended)
   const active = shifts.filter(s => mins >= s[0] && mins < s[1]);
-  if (active.length > 0) {
-    // Pick the one that started most recently
-    const best = active.reduce((a, b) => b[0] > a[0] ? b : a);
-    return best[2];
-  }
-
-  // If no active shift, pick the one starting soonest
+  if (active.length > 0) return active.reduce((a, b) => b[0] > a[0] ? b : a)[2];
   const upcoming = shifts.filter(s => s[0] > mins);
-  if (upcoming.length > 0) {
-    return upcoming.sort((a,b) => a[0]-b[0])[0][2];
-  }
-
+  if (upcoming.length > 0) return upcoming.sort((a,b) => a[0]-b[0])[0][2];
   return '';
 }
 
@@ -527,25 +662,16 @@ if (detectedShift) document.getElementById('shift').value = detectedShift;
 
 function showActivityFields() {
   const type = document.getElementById('activityType').value;
-  // Hide all
   document.querySelectorAll('[id^="fields-"]').forEach(el => el.classList.add('hidden'));
-  // Show selected
   if (type) {
     const el = document.getElementById('fields-' + type);
     if (el) el.classList.remove('hidden');
   }
 }
 
-function adjustTicker(id, delta) {
-  const el = document.getElementById(id);
-  const current = parseInt(el.textContent) || 0;
-  el.textContent = Math.max(0, current + delta);
-}
-
 function getVal(id) {
   const el = document.getElementById(id);
   if (!el) return '';
-  if (el.classList.contains('ticker-val')) return el.textContent;
   return el.value;
 }
 
@@ -564,26 +690,29 @@ function submitActivity() {
     return;
   }
 
-  // Validate activity-specific required fields
   const required = ACTIVITY_FIELDS[activityType] || [];
   for (const id of required) {
-    const val = getVal(id);
-    if (!val || val === '0' && id.includes('duration')) continue;
-    if (!val) {
+    if (!getVal(id)) {
       errEl.textContent = 'Please fill in all required fields.';
       errEl.style.display = 'block';
       return;
     }
   }
 
-  // Build payload based on activity type
-  const base = {
-    timestamp: new Date().toISOString(),
-    staffName, entryDate, shift, activityType,
-  };
-
+  const base = { timestamp: new Date().toISOString(), staffName, entryDate, shift, activityType };
   let extra = {};
-  if (activityType === 'Medical Records') {
+
+  if (activityType === 'Call Transfer') {
+    extra = { transferredTo: getVal('ct-transferredTo'), callerType: getVal('ct-callerType'), outcome: getVal('ct-outcome'), notes: getVal('ct-notes') };
+  } else if (activityType === 'Client Support') {
+    extra = { type: getVal('cs-type'), status: getVal('cs-status'), detail: getVal('cs-detail'), notes: getVal('cs-notes') };
+  } else if (activityType === 'Communication') {
+    extra = { channel: getVal('cm-channel'), action: getVal('cm-action'), contact: getVal('cm-contact'), regarding: getVal('cm-regarding'), notes: getVal('cm-notes') };
+  } else if (activityType === 'Billing Log') {
+    extra = { action: getVal('bl-action'), agentAudited: getVal('bl-agentAudited'), clientCount: getVal('bl-clientCount'), errorsFound: getVal('bl-errorsFound'), notes: getVal('bl-notes') };
+  } else if (activityType === 'Scheduling') {
+    extra = { apptType: getVal('sc-apptType'), numScheduled: getVal('sc-numScheduled'), reminderCalls: getVal('sc-reminderCalls'), notes: getVal('sc-notes') };
+  } else if (activityType === 'Medical Records') {
     extra = { system: getVal('mr-system'), requestorType: getVal('mr-requestorType'), numRecords: getVal('mr-numRecords'), status: getVal('mr-status'), notes: getVal('mr-notes') };
   } else if (activityType === 'Open Beds') {
     extra = { action: getVal('ob-action'), referralSource: getVal('ob-referralSource'), outcome: getVal('ob-outcome'), notes: getVal('ob-notes') };
@@ -597,33 +726,24 @@ function submitActivity() {
     extra = { referralSource: getVal('er-source'), actionTaken: getVal('er-action'), followUpRequired: getVal('er-followUp'), notes: getVal('er-notes') };
   } else if (activityType === 'Billing Audit') {
     extra = { logsReviewed: getVal('ba-logsReviewed'), errorsFound: getVal('ba-errorsFound'), errorsCorrected: getVal('ba-errorsCorrected'), notes: getVal('ba-notes') };
-  } else if (activityType === 'Scheduling') {
-    extra = { apptType: getVal('sc-apptType'), numScheduled: getVal('sc-numScheduled'), reminderCalls: getVal('sc-reminderCalls'), notes: getVal('sc-notes') };
-  } else if (activityType === 'Other Tasks') {
-    extra = { description: getVal('ot-description'), timeSpent: getVal('ot-duration') + ' min', assignedBy: getVal('ot-assignedBy'), notes: getVal('ot-notes') };
   }
 
   const payload = { ...base, ...extra, tab: activityType };
 
-  // Save persistent fields
   localStorage.setItem('hub_globals', JSON.stringify({ staffName, shift }));
 
-  // Show success immediately — don't wait for network
   const t = document.getElementById('toast');
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
 
-  // Reset form immediately
   resetActivityFields();
 
-  // Send to Google Sheets in background — no await
   fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(payload),
     redirect: 'follow',
   }).catch(() => {
-    // Silently retry once if it fails
     setTimeout(() => {
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
@@ -636,17 +756,9 @@ function submitActivity() {
 }
 
 function resetActivityFields() {
-  // Hide all activity panels
   document.querySelectorAll('[id^="fields-"]').forEach(el => el.classList.add('hidden'));
-  // Reset activity type
   document.getElementById('activityType').value = '';
-  // Reset all inputs inside activity panels
-  document.querySelectorAll('[id^="fields-"] input, [id^="fields-"] select, [id^="fields-"] textarea').forEach(el => {
-    el.value = '';
-  });
-  // Reset tickers
-  document.querySelectorAll('.ticker-val').forEach(el => el.textContent = '0');
-  // Keep date at today
+  document.querySelectorAll('[id^="fields-"] input, [id^="fields-"] select, [id^="fields-"] textarea').forEach(el => { el.value = ''; });
   document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
 }
 </script>
